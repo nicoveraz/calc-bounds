@@ -36,3 +36,12 @@ def test_imports(module: str) -> None:
 @pytest.mark.parametrize("path", CONFIGS, ids=lambda p: p.name)
 def test_example_configs_validate(path: Path) -> None:
     load_config(path)
+
+
+@pytest.mark.parametrize("path", CONFIGS, ids=lambda p: p.name)
+def test_config_calculators_resolve(path: Path) -> None:
+    from calc_bounds.calculators import get_calculator
+
+    cfg = load_config(path)
+    for calc_id in cfg.calculators:
+        get_calculator(calc_id, cfg.calculator_options.get(calc_id))
