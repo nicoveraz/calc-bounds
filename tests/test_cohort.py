@@ -108,3 +108,12 @@ def test_unknown_trap_kind_rejected() -> None:
     cfg = CFG.model_copy(update={"trap_rates": {"typo": 0.1}})
     with pytest.raises(ValueError, match="unknown trap"):
         generate_cohort([REGISTRY["qsofa"]], cfg, seed=1)
+
+
+def test_bp_documented_as_a_pair_and_no_age_value_traps(cohort: list[PatientCase]) -> None:
+    for case in cohort:
+        if "sbp" in case.documented and "dbp" in case.documented:
+            assert case.documented["sbp"] == case.documented["dbp"]
+        for t in case.traps:
+            if t.kind in (TrapKind.MULTIPLE_ENCOUNTERS, TrapKind.CONTRADICTORY_VALUES):
+                assert t.param != "age"

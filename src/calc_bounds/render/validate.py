@@ -79,7 +79,16 @@ def judge_issues(
             continue
         state = case.documented[p.id]
         status = it.get("status")
-        if status not in _EXPECTED[state]:
+        expected = _EXPECTED[state]
+        if (
+            isinstance(p.domain, OrdinalDomain)
+            and state != DocumentedState.NOT_DOCUMENTED
+            and int(case.truth[p.id]) == 0
+        ):
+            # Level 0 of a negatable ordinal ("ECG normal") is both a stated level and a
+            # normal finding.
+            expected = {"stated", "negated_or_normal"}
+        if status not in expected:
             what = {
                 "implied": "inferable from the note",
                 "not_mentioned": "missing from the note",
@@ -88,7 +97,7 @@ def judge_issues(
             }.get(str(status), f"status {status!r}")
             add(p.id, "error", f"expected {state.value}, judge found it {what}")
         if (
-            state == DocumentedState.POSITIVE
+            state != DocumentedState.NOT_DOCUMENTED
             and status == "stated"
             and isinstance(p.domain, OrdinalDomain)
         ):

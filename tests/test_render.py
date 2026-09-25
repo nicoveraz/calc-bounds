@@ -173,3 +173,42 @@ def test_export_review() -> None:
     )
     md = export_review_sample([note], {CASE.case_id: CASE}, {"curb65": CURB}, {}, 0.2, seed=1)
     assert "curb65-9999" in md and "**not documented**" in md and "urea 7.3 mmol/L" in md
+
+
+def test_judge_accepts_level_zero_as_stated_or_normal() -> None:
+    heart = REGISTRY["heart"]
+    truth = {p.id: False for p in heart.parameters} | {
+        "heart_history": 0,
+        "heart_ecg": 0,
+        "age": 50.0,
+        "heart_troponin": 0,
+    }
+    documented = {p.id: D.NOT_DOCUMENTED for p in heart.parameters} | {
+        "heart_ecg": D.NEGATIVE,
+        "heart_troponin": D.POSITIVE,
+    }
+    case = CASE.model_copy(update={"calculator": "heart", "truth": truth, "documented": documented})
+    items = [
+        {"param": p.id, "status": "not_mentioned", "level": None, "quote": None}
+        for p in heart.parameters
+    ]
+    items[1] = {"param": "heart_ecg", "status": "stated", "level": "normal", "quote": None}
+    items[-1] = {
+        "param": "heart_troponin",
+        "status": "negated_or_normal",
+        "level": None,
+        "quote": None,
+    }
+    assert judge_issues(case, heart, "", items) == []
+    items[1]["level"] = "nonspecific_repolarization"
+    assert [i.param for i in judge_issues(case, heart, "", items)] == ["heart_ecg"]
+
+
+def test_not_mentioned_hints_in_prompt() -> None:
+    perc = REGISTRY["perc"]
+    documented = dict.fromkeys([p.id for p in perc.parameters], D.NOT_DOCUMENTED)
+    truth = {p.id: False for p in perc.parameters} | {"age": 30.0, "heart_rate": 80.0, "spo2": 98.0}
+    case = CASE.model_copy(update={"calculator": "perc", "truth": truth, "documented": documented})
+    prompt = render_prompt(case, perc, "en-US")
+    assert "Omit the medication list entirely" in prompt
+    assert '"Medications: none"' in prompt

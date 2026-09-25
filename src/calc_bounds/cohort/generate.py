@@ -23,6 +23,12 @@ from calc_bounds.units import DISPLAY_DECIMALS, accepted_units, from_canonical, 
 
 MAX_ATTEMPTS_PER_CASE = 500
 
+# Parameters a note documents together: they share one missing / normal-as-negation draw.
+DOCUMENTED_TOGETHER: list[tuple[ParamId, ...]] = [("sbp", "dbp")]
+
+# Value traps (prior encounter, contradictory reading) only make sense for measurements.
+NOT_REMEASURED: set[ParamId] = {"age"}
+
 # Comorbidities a note may imply only through a medication. Illustrative, not exhaustive.
 MEDICATION_FOR: dict[ParamId, str] = {
     "hypertension": "lisinopril",
@@ -73,25 +79,34 @@ def assign_documented(
     config: CohortConfig,
     rng: np.random.Generator,
 ) -> dict[ParamId, DocumentedState]:
+    ids = {p.id for p in calc.parameters}
+    groups = [g for g in DOCUMENTED_TOGETHER if set(g) <= ids]
+    grouped = {pid for g in groups for pid in g}
+    units = [(p,) for p in calc.parameters if p.id not in grouped] + [
+        tuple(calc.param(pid) for pid in g) for g in groups
+    ]
     doc: dict[ParamId, DocumentedState] = {}
-    for p in calc.parameters:
-        v = truth[p.id]
+    for unit in sorted(units, key=lambda u: [p.id for p in calc.parameters].index(u[0].id)):
         missing = rng.random() < config.missingness
         as_negation = rng.random() < config.normal_as_negation_rate
-        if missing:
-            doc[p.id] = DocumentedState.NOT_DOCUMENTED
-        elif isinstance(p.domain, BoolDomain):
-            if v:
-                doc[p.id] = DocumentedState.POSITIVE
-            elif p.negatable:
+        # A group is written as "normal" only if every member is normal.
+        all_normal = all(p.negatable and _is_normal(p, truth[p.id]) for p in unit)
+        for p in unit:
+            v = truth[p.id]
+            if missing:
+                doc[p.id] = DocumentedState.NOT_DOCUMENTED
+            elif isinstance(p.domain, BoolDomain):
+                if v:
+                    doc[p.id] = DocumentedState.POSITIVE
+                elif p.negatable:
+                    doc[p.id] = DocumentedState.NEGATIVE
+                else:
+                    doc[p.id] = DocumentedState.NOT_DOCUMENTED
+            elif all_normal and as_negation:
                 doc[p.id] = DocumentedState.NEGATIVE
             else:
-                doc[p.id] = DocumentedState.NOT_DOCUMENTED
-        elif p.negatable and _is_normal(p, v) and as_negation:
-            doc[p.id] = DocumentedState.NEGATIVE
-        else:
-            doc[p.id] = DocumentedState.POSITIVE
-    return doc
+                doc[p.id] = DocumentedState.POSITIVE
+    return {p.id: doc[p.id] for p in calc.parameters}
 
 
 def _different_value(dist: Distribution, v: Value, rng: np.random.Generator) -> Value:
@@ -131,7 +146,7 @@ def assign_traps(
             case TrapKind.MIXED_UNITS:
                 cands = [pid for pid in positive_numeric if len(accepted_units(pid)) > 1]
             case TrapKind.MULTIPLE_ENCOUNTERS | TrapKind.CONTRADICTORY_VALUES:
-                cands = positive_numeric
+                cands = [pid for pid in positive_numeric if pid not in NOT_REMEASURED]
             case TrapKind.COMORBIDITY_VIA_MEDICATION:
                 cands = [
                     pid

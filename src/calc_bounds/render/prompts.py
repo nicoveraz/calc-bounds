@@ -38,8 +38,13 @@ Fact sheet (each item is mandatory):
 Rules:
 - Write numbers exactly as given in the fact sheet (same digits and decimals), with the unit \
 given; you may use natural phrasing and abbreviations around them.
+- Express each item in natural clinical language, as a clinician would chart it; do not copy \
+the fact-sheet wording. Numbers, units and ordinal meanings must stay exactly as specified.
 - Follow each item exactly. Do not add information about any fact-sheet item beyond what it \
 says, and do not include anything that implies an item marked DO NOT MENTION.
+- No blanket or complete statements that would cover a DO NOT MENTION item: no "Medications: \
+none", "PMH: none/unremarkable", "ROS otherwise negative", "vitals stable" or "labs normal". \
+If a list (medications, history) would normally reveal such an item, leave that list out.
 - You may add other realistic details (presenting complaint, unrelated history, unrelated \
 examination findings, investigations and plan) as long as they do not imply any fact-sheet \
 item.

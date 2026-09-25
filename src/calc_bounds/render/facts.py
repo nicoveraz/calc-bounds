@@ -52,6 +52,8 @@ def build_facts(case: PatientCase, calc: Calculator) -> list[Fact]:
                 "(no value, no 'normal'/'abnormal', no related medication, no blanket "
                 "statements such as 'vitals stable' or 'labs unremarkable' that would cover it)."
             )
+            if p.id in vocab.NOT_MENTIONED_HINTS:
+                text += " " + vocab.NOT_MENTIONED_HINTS[p.id]
             if isinstance(p.domain, NumericDomain):
                 leaks.append(fmt(v))
         else:

@@ -114,3 +114,20 @@ FORBIDDEN_TERMS = [
     "CrCl",
 ]
 """The note must not name the calculator or give its result."""
+
+# Extra guidance for DO NOT MENTION items that renderers tend to leak indirectly.
+NOT_MENTIONED_HINTS: dict[ParamId, str] = {
+    "confusion": "Do not describe mental status, orientation, alertness or GCS at all.",
+    "altered_mentation": "Do not describe mental status, orientation, alertness or GCS at all.",
+    "hormone_use": "Omit the medication list entirely (a complete medication list would imply it).",
+    "prior_vte": "Omit past medical history entirely (a complete history would imply it).",
+    "malignancy": "Omit past medical history entirely (a complete history would imply it).",
+    "pe_most_likely": (
+        "Do not give a differential diagnosis, a ranking of diagnoses, or any statement of how "
+        "likely pulmonary embolism is; the plan may list investigations neutrally, without "
+        "empiric treatment."
+    ),
+    "heart_history": "Do not characterise how typical or suspicious the chest pain is.",
+    "sbp": "Do not give a blood pressure or describe it.",
+    "dbp": "Do not give a blood pressure or describe it.",
+}
