@@ -212,3 +212,20 @@ def test_not_mentioned_hints_in_prompt() -> None:
     prompt = render_prompt(case, perc, "en-US")
     assert "Omit the medication list entirely" in prompt
     assert '"Medications: none"' in prompt
+
+
+def test_judge_implied_is_warning_for_documented_error_for_not_documented() -> None:
+    items = [
+        {"param": p.id, "status": "stated", "level": None, "quote": None} for p in CURB.parameters
+    ]
+    by = {it["param"]: it for it in items}
+    by["confusion"]["status"] = "negated_or_normal"
+    by["sbp"]["status"] = by["dbp"]["status"] = "negated_or_normal"
+    by["age"]["status"] = "not_mentioned"
+    by["urea"]["status"] = "implied"  # documented positive, shown indirectly
+    issues = judge_issues(CASE, CURB, GOOD, items)
+    assert [(i.param, i.severity) for i in issues] == [("urea", "warning")]
+    by["age"]["status"] = "implied"  # not documented: a leak
+    assert ("age", "error") in [
+        (i.param, i.severity) for i in judge_issues(CASE, CURB, GOOD, items)
+    ]

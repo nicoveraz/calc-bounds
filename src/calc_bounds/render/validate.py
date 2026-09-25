@@ -88,7 +88,11 @@ def judge_issues(
             # Level 0 of a negatable ordinal ("ECG normal") is both a stated level and a
             # normal finding.
             expected = {"stated", "negated_or_normal"}
-        if status not in expected:
+        if status == "implied" and state != DocumentedState.NOT_DOCUMENTED:
+            # The item is in the note, but indirectly (a medication, another unit, a synonym,
+            # "renal function normal"). Expected for some traps; worth a look, not a failure.
+            add(p.id, "warning", f"expected {state.value}, judge found it only implied")
+        elif status not in expected:
             what = {
                 "implied": "inferable from the note",
                 "not_mentioned": "missing from the note",

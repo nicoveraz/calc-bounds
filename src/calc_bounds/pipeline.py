@@ -152,6 +152,8 @@ def pending_path(cfg: RunConfig, stage: str, render: str) -> Path:
 
 
 def _finish_pending(path: Path, pending: list[PendingItem]) -> None:
+    # Cases with identical fact sheets produce identical requests: answer each only once.
+    pending = list({it.key: it for it in pending}.values())
     if pending:
         write_pending(path, pending)
     elif path.exists():
@@ -193,7 +195,7 @@ def render_notes(cfg: RunConfig, render: str) -> dict[str, int]:
     _finish_pending(pending_path(cfg, "render", render), pending)
     return {
         "notes": len(notes),
-        "pending": len(pending),
+        "pending": len({it.key for it in pending}),
         "notes_with_rule_errors": sum(any(i.severity == "error" for i in n.issues) for n in notes),
     }
 
@@ -244,7 +246,7 @@ def judge_notes(cfg: RunConfig, render: str) -> dict[str, int]:
     _finish_pending(pending_path(cfg, "judge", render), pending)
     return {
         "judged": len(results),
-        "pending": len(pending),
+        "pending": len({it.key for it in pending}),
         "notes_with_judge_errors": sum(
             any(i.severity == "error" for i in r.issues) for r in results
         ),
