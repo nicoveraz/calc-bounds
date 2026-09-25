@@ -117,3 +117,20 @@ def test_bp_documented_as_a_pair_and_no_age_value_traps(cohort: list[PatientCase
         for t in case.traps:
             if t.kind in (TrapKind.MULTIPLE_ENCOUNTERS, TrapKind.CONTRADICTORY_VALUES):
                 assert t.param != "age"
+
+
+def test_value_trap_distractors_usually_flip_category(cohort: list[PatientCase]) -> None:
+    flips = total = 0
+    for case in cohort:
+        calc = REGISTRY[case.calculator]
+        for t in case.traps:
+            key = {
+                "multiple_encounters": "prior_encounter_value",
+                "contradictory_values": "distractor_value",
+            }.get(t.kind.value)
+            if key:
+                total += 1
+                flips += (
+                    calc.evaluate({**case.truth, t.param: t.detail[key]})[1] != case.true_category
+                )
+    assert total > 10 and flips / total > 0.5

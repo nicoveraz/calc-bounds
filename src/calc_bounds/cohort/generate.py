@@ -109,12 +109,27 @@ def assign_documented(
     return {p.id: doc[p.id] for p in calc.parameters}
 
 
-def _different_value(dist: Distribution, v: Value, rng: np.random.Generator) -> Value:
-    for _ in range(1000):
+def _distractor(
+    calc: Calculator,
+    truth: dict[ParamId, Value],
+    pid: ParamId,
+    dist: Distribution,
+    rng: np.random.Generator,
+) -> Value:
+    """A different value for `pid` that would change the category if mistaken for the truth,
+    when one can be found by sampling; otherwise any different value."""
+    fallback = None
+    true_category = calc.evaluate(truth)[1]
+    for _ in range(2000):
         x = dist.sample(rng)
-        if x != v:
+        if x == truth[pid]:
+            continue
+        if calc.evaluate({**truth, pid: x})[1] != true_category:
             return x
-    raise RuntimeError(f"could not sample a value different from {v}")
+        fallback = x if fallback is None else fallback
+    if fallback is None:
+        raise RuntimeError(f"could not sample a value different from {truth[pid]}")
+    return fallback
 
 
 def assign_traps(
@@ -125,7 +140,9 @@ def assign_traps(
     config: CohortConfig,
     rng: np.random.Generator,
 ) -> list[Trap]:
-    """At most one trap per param. Traps are rendering instructions. The one exception that
+    """At most one trap per param. Value traps (prior encounter, contradictory reading) use a
+    distractor that would change the category if mistaken for the truth, when one exists.
+    Traps are rendering instructions. The one exception that
     touches truth: a mixed-units trap snaps the true value to exactly the value the note will
     display in the other unit, so display rounding can never move a value across a threshold.
     Mutates `truth` in place for that case."""
@@ -167,12 +184,12 @@ def assign_traps(
                 detail = {"unit": unit, "value_in_unit": shown}
             case TrapKind.MULTIPLE_ENCOUNTERS:
                 detail = {
-                    "prior_encounter_value": _different_value(priors[pid], truth[pid], rng),
+                    "prior_encounter_value": _distractor(calc, truth, pid, priors[pid], rng),
                     "note": "value from an earlier encounter; the current value is the truth",
                 }
             case TrapKind.CONTRADICTORY_VALUES:
                 detail = {
-                    "distractor_value": _different_value(priors[pid], truth[pid], rng),
+                    "distractor_value": _distractor(calc, truth, pid, priors[pid], rng),
                     "note": "an earlier same-visit reading superseded by the repeat (the truth)",
                 }
             case TrapKind.COMORBIDITY_VIA_MEDICATION:

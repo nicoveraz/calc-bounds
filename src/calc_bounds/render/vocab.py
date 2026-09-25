@@ -128,6 +128,11 @@ NOT_MENTIONED_HINTS: dict[ParamId, str] = {
         "empiric treatment."
     ),
     "heart_history": "Do not characterise how typical or suspicious the chest pain is.",
+    "sex": (
+        "Use gender-neutral wording throughout (the patient, they; no he/she, Mr/Ms, or "
+        "sex-specific history or examination)."
+    ),
+    "age": "Give no age, date of birth, or age descriptor (e.g. 'elderly', 'young').",
     "sbp": "Do not give a blood pressure or describe it.",
     "dbp": "Do not give a blood pressure or describe it.",
 }
