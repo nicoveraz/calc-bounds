@@ -40,4 +40,11 @@ uv run pytest -m llm                     # real-API tests only
 uv run ruff check . && uv run ruff format .
 uv run calc-bounds --help
 uv run calc-bounds check-config configs/m2_oracle.yaml
+uv run calc-bounds all configs/m2_oracle.yaml            # M2: cohort -> S1/S3 -> eval (oracle)
+uv run calc-bounds render configs/main.yaml --name pilot # M3: render (session: exports pending)
+uv run calc-bounds import-responses configs/main.yaml runs/main/pending/render-pilot.jsonl R.jsonl
+uv run calc-bounds judge configs/main.yaml --name pilot
+uv run calc-bounds export-review configs/main.yaml --name pilot
 ```
+- Session-provider responses are written by Claude Code subagents running the configured model,
+  given only the pending prompt (no repo access), then imported. Label notes honestly.

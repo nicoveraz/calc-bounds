@@ -76,6 +76,31 @@ The oracle extractor lets `cohort → policy → eval` run with no notes and no 
 - **Silent missing-as-absent:** a trace records `initial_known`, the constraints before any
   question. A constraint on a not-documented param is counted as a silent error.
 
+## M3 rendering and validation
+- **Fact sheet.** Each case becomes per-parameter instructions:
+  - STATE (with the exact number to write)
+  - STATE AS NORMAL (no number)
+  - DO NOT MENTION (nothing inferable)
+  - plus trap instructions: an embedded negation, another unit, a dated prior value, a
+    superseded triage value, or a comorbidity shown only through a medication.
+  The note must not name any score or rule.
+- **Locales** are rendered directly from the structure; the fact sheet is language-neutral
+  English, and style guides live in `render/styles/<locale>.md`.
+- **Validation** has two layers. Failures are recorded as issues and never dropped.
+  - Rule checks (deterministic): every required number appears in its exact surface form,
+    not-documented numeric values don't appear (warning), no score names, minimum length.
+  - A judge model (must differ from the renderer) classifies each parameter as stated,
+    negated/normal, not mentioned or implied, and gives the ordinal level. Any mismatch
+    with the documented state is an error. "Implied" catches leaks.
+- **Session provider.** `render`/`judge` export cache misses to `runs/<run>/pending/`. They
+  are answered offline (Claude Code subagents on the configured model) and loaded with
+  `import-responses`, which checks each response against its pending request hash. Re-running
+  the stage then reads from the cache. Notes are replayable from the cache but not
+  regenerable byte-for-byte.
+- **Renderer-family bias.** `renders` holds named render sets over the same cases (e.g.
+  `sonnet` for all cases, `local` for a 25-per-calculator subset) for the 2×2 renderer ×
+  extractor-family comparison in M4.
+
 ## Config format
 YAML validated by `config.RunConfig` (extra keys rejected). See
 `configs/m2_oracle.yaml`. Sections: `run_id`, `seed`, `calculators`,
