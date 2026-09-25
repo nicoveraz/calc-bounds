@@ -4,7 +4,6 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
-from calc_bounds.config import CohortConfig
 from calc_bounds.types import CalculatorId, DocumentedState, ParamId, Value
 
 
@@ -30,9 +29,12 @@ class PatientCase(BaseModel):
     truth: dict[ParamId, Value]
     documented: dict[ParamId, DocumentedState]
     traps: list[Trap] = []
+    true_score: float
+    true_category: str
     determined_from_note: bool
     """Whether the category is determined from documented params alone (coverage tag)."""
 
 
-def generate_cohort(config: CohortConfig, seed: int) -> list[PatientCase]:
-    raise NotImplementedError  # M2
+from calc_bounds.cohort.generate import generate_cohort  # noqa: E402
+
+__all__ = ["PatientCase", "Trap", "TrapKind", "generate_cohort"]

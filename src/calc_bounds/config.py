@@ -6,6 +6,8 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
+from calc_bounds.distributions import Distribution
+
 
 class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -27,10 +29,17 @@ class ProviderConfig(Strict):
 class CohortConfig(Strict):
     n_per_calculator: int = Field(gt=0)
     missingness: float = Field(ge=0.0, le=1.0)
-    negation_rate: float = Field(ge=0.0, le=1.0)
-    """Among documented params, fraction documented as negative/normal where meaningful."""
-    min_undetermined_fraction: float = Field(ge=0.0, le=1.0)
+    """Per-parameter probability that the note does not document it."""
+    normal_as_negation_rate: float = Field(ge=0.0, le=1.0)
+    """For documented numeric/ordinal values that are normal: probability the note says
+    'normal' (documented_negative) rather than stating the value. Booleans that are false are
+    always documented as negated."""
+    undetermined_fraction: float = Field(ge=0.0, le=1.0)
+    """Exact fraction of cases per calculator whose category is undetermined from the note."""
     trap_rates: dict[str, float] = {}
+    """Per trap kind (see cohort.TrapKind): probability a case gets one trap of that kind."""
+    priors: dict[str, dict[str, Distribution]] = {}
+    """Overrides of cohort.priors.DEFAULT_PRIORS, by calculator then parameter."""
 
 
 class RenderConfig(Strict):
