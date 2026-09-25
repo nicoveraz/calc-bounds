@@ -19,7 +19,7 @@ from calc_bounds.types import (
     ParamId,
     Value,
 )
-from calc_bounds.units import accepted_units, from_canonical
+from calc_bounds.units import DISPLAY_DECIMALS, accepted_units, from_canonical, to_canonical
 
 MAX_ATTEMPTS_PER_CASE = 500
 
@@ -110,7 +110,10 @@ def assign_traps(
     config: CohortConfig,
     rng: np.random.Generator,
 ) -> list[Trap]:
-    """At most one trap per param. Traps are rendering instructions; they never change truth."""
+    """At most one trap per param. Traps are rendering instructions. The one exception that
+    touches truth: a mixed-units trap snaps the true value to exactly the value the note will
+    display in the other unit, so display rounding can never move a value across a threshold.
+    Mutates `truth` in place for that case."""
     traps: list[Trap] = []
     used: set[ParamId] = set()
     positive_numeric = [
@@ -144,10 +147,9 @@ def assign_traps(
         match kind:
             case TrapKind.MIXED_UNITS:
                 unit = str(rng.choice(accepted_units(pid)[1:]))
-                detail = {
-                    "unit": unit,
-                    "value_in_unit": round(from_canonical(pid, float(truth[pid]), unit), 2),
-                }
+                shown = round(from_canonical(pid, float(truth[pid]), unit), DISPLAY_DECIMALS[unit])
+                truth[pid] = to_canonical(pid, shown, unit)
+                detail = {"unit": unit, "value_in_unit": shown}
             case TrapKind.MULTIPLE_ENCOUNTERS:
                 detail = {
                     "prior_encounter_value": _different_value(priors[pid], truth[pid], rng),
@@ -183,6 +185,7 @@ def generate_for_calculator(calc: Calculator, config: CohortConfig, seed: int) -
         crng = np.random.default_rng(case_seed)
         truth = sample_truth(calc, priors, crng)
         doc = assign_documented(calc, truth, config, crng)
+        traps = assign_traps(calc, truth, doc, priors, config, crng)
         known = from_extractions(calc, oracle_extractions(calc.parameters, truth, doc))
         determined = is_determined(calc, known)
         if quota[determined] == 0:
@@ -196,7 +199,7 @@ def generate_for_calculator(calc: Calculator, config: CohortConfig, seed: int) -
                 calculator=calc.id,
                 truth=truth,
                 documented=doc,
-                traps=assign_traps(calc, truth, doc, priors, config, crng),
+                traps=traps,
                 true_score=score,
                 true_category=category,
                 determined_from_note=determined,

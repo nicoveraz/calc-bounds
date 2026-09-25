@@ -52,6 +52,15 @@ _ALIASES: dict[str, str] = {
 }
 
 
+# Decimals used when a value is displayed in a non-canonical unit (mixed-units trap).
+DISPLAY_DECIMALS: dict[str, int] = {
+    "urea_mg/dL": 0,
+    "bun_mg/dL": 0,
+    "umol/L": 0,
+    "lb": 0,
+}
+
+
 class UnitError(ValueError):
     """Raised for unknown units or conversions that are not defined for a parameter."""
 
