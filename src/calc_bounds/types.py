@@ -9,9 +9,9 @@ Unknown must never be treated as Absent, except in the explicit S3-bin ablation.
 """
 
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 type ParamId = str
 type CalculatorId = str
@@ -54,10 +54,21 @@ class ParameterSpec(Frozen):
     id: ParamId
     label: str
     domain: Domain
+    negatable: bool = True
+    """Whether a note can document this parameter as negative / normal. If False (e.g. age,
+    weight, sex) the parameter can only be Present or Unknown."""
     absent_means: tuple[float, float] | None = None
-    """For numeric params: the interval implied by 'documented negative / stated normal'.
-    None means an explicit negation is not meaningful for this parameter (it can only be
-    Present or Unknown). For bool params Absent means False; for ordinal, level 0."""
+    """For negatable numeric params: the interval implied by 'stated normal'.
+    For bool params Absent means False; for ordinal params, level 0."""
+
+    @model_validator(mode="after")
+    def _check_absent(self) -> Self:
+        numeric = isinstance(self.domain, NumericDomain)
+        if numeric and self.negatable and self.absent_means is None:
+            raise ValueError(f"{self.id}: negatable numeric param needs absent_means")
+        if self.absent_means is not None and not (numeric and self.negatable):
+            raise ValueError(f"{self.id}: absent_means only applies to negatable numeric params")
+        return self
 
 
 # --- Documented state and extraction ------------------------------------------------------------
