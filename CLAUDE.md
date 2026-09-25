@@ -39,5 +39,5 @@ uv run pytest                            # tests (excludes llm-marked)
 uv run pytest -m llm                     # real-API tests only
 uv run ruff check . && uv run ruff format .
 uv run calc-bounds --help
-uv run calc-bounds check-config configs/m2_oracle.example.yaml
+uv run calc-bounds check-config configs/m2_oracle.yaml
 ```

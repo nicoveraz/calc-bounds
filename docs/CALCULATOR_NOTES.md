@@ -31,6 +31,8 @@ not accessible) · **[S]** secondary source (NICE, MDCalc, NKF, later papers by 
 | 18 | Units | Creatinine factor | 88.4 µmol/L per mg/dL | 88.42 (10,000 / 113.12) |
 | 19 | Params | "Stated normal" intervals | see table below | — |
 | 20 | Params | Creatinine can't be "normal" | Present or Unknown only | allow a normal interval |
+| 21 | Cohort | Population priors per calculator | `cohort/priors.py` (rough, independent) | your estimates; correlations (e.g. age and risk factors) |
+| 22 | Cohort | Medication implying a comorbidity | lisinopril → HTN, metformin → DM, atorvastatin → hypercholesterolaemia | other drugs, or ambiguity traps (e.g. metformin for PCOS) |
 
 ## HEART
 

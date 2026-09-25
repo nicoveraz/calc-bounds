@@ -4,6 +4,7 @@ from pathlib import Path
 
 import typer
 
+from calc_bounds import pipeline
 from calc_bounds.config import load_config
 
 app = typer.Typer(no_args_is_help=True, help="calc-bounds experiment pipeline.")
@@ -23,7 +24,7 @@ def _todo(milestone: str) -> None:
 @app.command()
 def cohort(config: Path) -> None:
     """Generate the synthetic cohort (JSONL)."""
-    _todo("M2")
+    typer.echo(f"wrote {pipeline.make_cohort(load_config(config))}")
 
 
 @app.command()
@@ -41,13 +42,26 @@ def export_review(config: Path) -> None:
 @app.command()
 def run(config: Path) -> None:
     """Run the configured policies over the cohort and write traces."""
-    _todo("M2")
+    typer.echo(f"wrote {pipeline.run_policies(load_config(config))}")
 
 
 @app.command(name="eval")
 def evaluate(config: Path) -> None:
-    """Compute metrics, statistics and plots from traces."""
-    _todo("M2")
+    """Compute metrics and plots from traces."""
+    out = pipeline.evaluate(load_config(config))
+    typer.echo((out / "summary.csv").read_text())
+    typer.echo(f"outputs in {out}")
+
+
+@app.command()
+def all(config: Path) -> None:
+    """cohort -> run -> eval."""
+    cfg = load_config(config)
+    pipeline.make_cohort(cfg)
+    pipeline.run_policies(cfg)
+    out = pipeline.evaluate(cfg)
+    typer.echo((out / "summary.csv").read_text())
+    typer.echo(f"outputs in {out}")
 
 
 @app.command()

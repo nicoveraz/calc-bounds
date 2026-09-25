@@ -1,4 +1,4 @@
-# Example run config (M2 shape): oracle extractor, zero API cost.
+# M2 run: oracle extractor, simulated clinician, S1 vs S3. Zero API cost.
 run_id: m2-oracle-s1-s3
 seed: 20260925
 output_dir: runs
@@ -13,8 +13,8 @@ calculator_options:
 cohort:
   n_per_calculator: 200
   missingness: 0.3
-  negation_rate: 0.5
-  min_undetermined_fraction: 0.4
+  normal_as_negation_rate: 0.5
+  undetermined_fraction: 0.5
   trap_rates:
     multiple_encounters: 0.1
     negation: 0.2
@@ -27,7 +27,7 @@ extraction:
 
 simulator:
   unavailable_rate:
-    troponin: 0.1
+    heart_troponin: 0.1
 
 policies: [s1_ask_all, s3_bounds]
 

@@ -62,9 +62,22 @@ The oracle extractor lets `cohort → policy → eval` run with no notes and no 
    `llm.cache_key` → disk cache (`.cache/llm/<sha256>.json`). Prices per model come from config;
    `max_cost_usd` is a hard budget per run (0 = no paid calls).
 
+## M2 pipeline decisions
+- **Cohort coverage:** rejection sampling fills an exact quota of cases whose category is
+  undetermined from the note (`undetermined_fraction`). Seeds are derived from
+  (run seed, calculator id) and (run seed, case id), so outputs don't depend on list order.
+- **Documented state:** false booleans are documented as negated. Normal numeric/ordinal
+  values are written as "normal" with probability `normal_as_negation_rate`; otherwise the
+  value is stated. Traps are rendering instructions only and never change truth.
+- **Abstention:** if a relevant answer is "not available" and nothing else can settle the
+  category, the policy abstains (`final_category = None`, scored as incorrect and reported as
+  `abstain_rate`). Code policies never guess.
+- **Silent missing-as-absent:** a trace records `initial_known`, the constraints before any
+  question. A constraint on a not-documented param is counted as a silent error.
+
 ## Config format
 YAML validated by `config.RunConfig` (extra keys rejected). See
-`configs/m2_oracle.example.yaml`. Sections: `run_id`, `seed`, `calculators`,
+`configs/m2_oracle.yaml`. Sections: `run_id`, `seed`, `calculators`,
 `calculator_options`, `cohort`, `render`, `extraction`, `simulator`, `policies`, `providers`
 (model names, base URLs, env var names for keys, prices).
 

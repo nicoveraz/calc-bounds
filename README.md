@@ -27,9 +27,11 @@ Calculators: HEART, CURB-65, qSOFA, PERC, Wells (PE, two-tier), Cockcroft-Gault.
 ```sh
 uv sync
 uv run pytest
-uv run calc-bounds --help
+uv run calc-bounds all configs/m2_oracle.yaml   # cohort -> policies -> eval, zero API cost
 ```
+Outputs land in `runs/<run_id>/`: `cohort.jsonl`, `traces.jsonl`, `cases.csv`,
+`summary*.csv`, `extraction_by_documented_state.csv`, `accuracy_vs_questions.png`.
 API keys go in environment variables (named in the run config), never in files under git.
 
 ## Layout
-See `docs/ARCHITECTURE.md`. Status: Milestone 1 (calculators, units, bounds). Review items: `docs/CALCULATOR_NOTES.md`.
+See `docs/ARCHITECTURE.md`. Status: Milestone 2 (cohort, simulator, S1/S3 with oracle extraction). Review items: `docs/CALCULATOR_NOTES.md`.
