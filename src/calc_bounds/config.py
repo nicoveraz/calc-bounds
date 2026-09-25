@@ -1,10 +1,10 @@
 """Run configuration. Every run is driven by one YAML file and is fully seeded."""
 
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from calc_bounds.distributions import Distribution
 
@@ -14,16 +14,37 @@ class Strict(BaseModel):
 
 
 class ProviderConfig(Strict):
-    kind: Literal["anthropic", "openai_compat"]
+    kind: Literal["anthropic", "openai_compat", "session"]
     model: str
+    """Exact model id. For `session`, the model that answers offline (recorded, not called)."""
     base_url: str | None = None
     """For openai_compat (vLLM / Ollama)."""
     api_key_env: str | None = None
     """Name of the env var holding the key; the key itself never goes in config."""
-    temperature: float = 0.0
-    max_tokens: int = 2048
+    max_tokens: int = 4096
+    effort: Literal["low", "medium", "high", "xhigh", "max"] | None = None
+    """anthropic only (output_config.effort)."""
+    temperature: float | None = None
+    """openai_compat only; current Claude models reject sampling parameters."""
+    seed: int | None = None
+    """openai_compat only."""
     price_per_mtok_in: float = 0.0
     price_per_mtok_out: float = 0.0
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.kind == "anthropic" and (self.temperature is not None or self.seed is not None):
+            raise ValueError("anthropic: temperature/seed are not supported by current models")
+        if self.kind == "openai_compat" and not self.base_url:
+            raise ValueError("openai_compat needs base_url")
+        return self
+
+    def request_params(self) -> dict[str, object]:
+        params: dict[str, object] = {"max_tokens": self.max_tokens}
+        for name in ("effort", "temperature", "seed"):
+            if (v := getattr(self, name)) is not None:
+                params[name] = v
+        return params
 
 
 class CohortConfig(Strict):
@@ -46,6 +67,14 @@ class RenderConfig(Strict):
     provider: str
     """Key into `providers`."""
     locales: list[Literal["en-US", "es-CL"]]
+    subset_per_calculator: int | None = None
+    """Render only a seeded, coverage-stratified subset of this many cases per calculator."""
+
+
+class ValidationConfig(Strict):
+    judge_provider: str | None = None
+    """Key into `providers` for the semantic check (negations expressed, nothing inferable).
+    Should be a different model from the renderer. None = deterministic checks only."""
     review_fraction: float = 0.2
 
 
@@ -71,13 +100,26 @@ class RunConfig(Strict):
     calculators: list[str]
     calculator_options: dict[str, dict[str, list[float] | float | str]] = {}
     cohort: CohortConfig
-    render: RenderConfig | None = None
+    renders: dict[str, RenderConfig] = {}
+    """Named render sets, e.g. {"sonnet": ..., "local": ...}; the same cases can be rendered
+    by several providers."""
+    validation: ValidationConfig = ValidationConfig()
     extraction: ExtractionConfig
     simulator: SimulatorConfig = SimulatorConfig()
     policies: list[
         Literal["s1_ask_all", "s2_llm_agent", "s3_bounds", "s4_bounds_voi_echo", "s3_bin"]
     ]
     providers: dict[str, ProviderConfig] = {}
+
+    @model_validator(mode="after")
+    def _check_refs(self) -> Self:
+        for name, r in self.renders.items():
+            if r.provider not in self.providers:
+                raise ValueError(f"renders.{name}: unknown provider {r.provider!r}")
+        judge = self.validation.judge_provider
+        if judge is not None and judge not in self.providers:
+            raise ValueError(f"validation.judge_provider: unknown provider {judge!r}")
+        return self
 
 
 def load_config(path: Path) -> RunConfig:
