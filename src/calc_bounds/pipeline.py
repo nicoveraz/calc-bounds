@@ -20,6 +20,7 @@ from calc_bounds.render import JudgeResult, RenderedNote, ValidationIssue
 from calc_bounds.render.export import export_review_sample
 from calc_bounds.render.prompts import (
     JUDGE_SYSTEM,
+    PROMPT_VERSION,
     RENDER_SYSTEM,
     judge_prompt,
     render_prompt,
@@ -160,9 +161,54 @@ def _finish_pending(path: Path, pending: list[PendingItem]) -> None:
         path.unlink()
 
 
+def _render_request(
+    pcfg: ProviderConfig, case: PatientCase, calc: Calculator, locale: str, attempt: int
+) -> LLMRequest:
+    req = _request(pcfg, RENDER_SYSTEM, render_prompt(case, calc, locale))
+    if attempt > 1:  # attempt 1 carries no marker, so its cache key is the plain prompt's
+        req.params["attempt"] = attempt
+    return req
+
+
+def _judge_request(cfg: RunConfig, calc: Calculator, text: str) -> LLMRequest | None:
+    judge = cfg.validation.judge_provider
+    if judge is None:
+        return None
+    return _request(cfg.providers[judge], JUDGE_SYSTEM, judge_prompt(text, calc))
+
+
+def _judge_verdict(
+    cfg: RunConfig, llm: LLM, case: PatientCase, calc: Calculator, text: str
+) -> list[ValidationIssue] | None:
+    """Judge issues from the cache only (never calls a model); None if not judged yet."""
+    req = _judge_request(cfg, calc, text)
+    if req is None:
+        return []
+    cached = llm.cache.get(cache_key(req))
+    if cached is None:
+        return None
+    items = parse_judge(cached.text)
+    if items is None:
+        return [
+            ValidationIssue(
+                param=None, source="judge", severity="error", problem="judge output unparseable"
+            )
+        ]
+    return judge_issues(case, calc, text, items)
+
+
+def _failed(issues: list[ValidationIssue]) -> bool:
+    return any(i.severity == "error" for i in issues)
+
+
 def render_notes(cfg: RunConfig, render: str) -> dict[str, int]:
-    """Render (or load from cache) every selected case x locale. Session-provider cache misses
-    are exported to pending/render-<name>.jsonl instead of failing."""
+    """Render every selected case x locale, reading from the cache where possible.
+
+    Attempts 1..max_attempts are walked in order: the first attempt that passes validation
+    (rule checks + cached judge verdict) is kept. The walk stops at an attempt that is not yet
+    rendered (exported as pending for session providers) or not yet judged (run `judge`, then
+    `render` again). If every attempt fails, the last one is kept with validation_failed=True.
+    """
     spec = cfg.renders[render]
     pcfg = cfg.providers[spec.provider]
     cases = read_jsonl(run_dir(cfg) / "cohort.jsonl", PatientCase)
@@ -173,30 +219,44 @@ def render_notes(cfg: RunConfig, render: str) -> dict[str, int]:
     for case in select_cases(cfg, cases, spec.subset_per_calculator):
         calc = calcs[case.calculator]
         for locale in spec.locales:
-            req = _request(pcfg, RENDER_SYSTEM, render_prompt(case, calc, locale))
-            try:
-                resp = llm.complete(req, provider=spec.provider, stage=f"render:{render}")
-            except PendingResponseError as e:
-                pending.append(PendingItem(key=e.key, request=req))
-                continue
-            notes.append(
-                RenderedNote(
-                    case_id=case.case_id,
-                    render=render,
-                    locale=locale,
-                    text=resp.text,
-                    provider=pcfg.kind,
-                    model=pcfg.model,
-                    cache_key=cache_key(req),
-                    issues=rule_issues(case, calc, resp.text),
+            for attempt in range(1, spec.max_attempts + 1):
+                req = _render_request(pcfg, case, calc, locale, attempt)
+                try:
+                    resp = llm.complete(req, provider=spec.provider, stage=f"render:{render}")
+                except PendingResponseError as e:
+                    pending.append(PendingItem(key=e.key, request=req))
+                    break
+                rules = rule_issues(case, calc, resp.text)
+                verdict = (
+                    None if _failed(rules) else _judge_verdict(cfg, llm, case, calc, resp.text)
                 )
-            )
+                failed = _failed(rules) or (verdict is not None and _failed(verdict))
+                last = attempt == spec.max_attempts
+                if (not failed and verdict is None) or not failed or last:
+                    notes.append(
+                        RenderedNote(
+                            case_id=case.case_id,
+                            render=render,
+                            locale=locale,
+                            text=resp.text,
+                            provider=pcfg.kind,
+                            model=pcfg.model,
+                            cache_key=cache_key(req),
+                            prompt_version=PROMPT_VERSION,
+                            attempt=attempt,
+                            validation_failed=failed,
+                            issues=rules,
+                        )
+                    )
+                    break
     write_jsonl(notes_path(cfg, render), notes)
     _finish_pending(pending_path(cfg, "render", render), pending)
     return {
         "notes": len(notes),
         "pending": len({it.key for it in pending}),
-        "notes_with_rule_errors": sum(any(i.severity == "error" for i in n.issues) for n in notes),
+        "retried_notes": sum(n.attempt > 1 for n in notes),
+        "notes_failing_after_max_attempts": sum(n.validation_failed for n in notes),
+        "notes_with_rule_errors": sum(_failed(n.issues) for n in notes),
     }
 
 
@@ -215,7 +275,8 @@ def judge_notes(cfg: RunConfig, render: str) -> dict[str, int]:
     for note in read_jsonl(notes_path(cfg, render), RenderedNote):
         case = cases[note.case_id]
         calc = calcs[case.calculator]
-        req = _request(pcfg, JUDGE_SYSTEM, judge_prompt(note.text, calc))
+        req = _judge_request(cfg, calc, note.text)
+        assert req is not None
         try:
             resp = llm.complete(req, provider=judge, stage=f"judge:{render}")
         except PendingResponseError as e:

@@ -86,6 +86,8 @@ class OpenAICompatClient:
         for name in ("temperature", "seed", "logprobs", "top_logprobs", "response_format"):
             if name in p:
                 kwargs[name] = p[name]
+        if "seed" in kwargs and p.get("attempt", 1) > 1:
+            kwargs["seed"] = int(kwargs["seed"]) + int(p["attempt"]) - 1  # retries must differ
         t0 = time.perf_counter()
         resp = self.client.chat.completions.create(**kwargs)
         latency = time.perf_counter() - t0

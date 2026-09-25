@@ -97,6 +97,17 @@ The oracle extractor lets `cohort → policy → eval` run with no notes and no 
   `import-responses`, which checks each response against its pending request hash. Re-running
   the stage then reads from the cache. Notes are replayable from the cache but not
   regenerable byte-for-byte.
+- **Retries (rejection sampling for faithfulness).** A note that fails validation (any rule
+  or judge error) is re-rendered, up to `max_attempts` per render set (default 3). Attempt n > 1
+  adds `attempt: n` to the request params, so it gets its own cache key; local models also get
+  a different seed. `render` walks the attempts from the cache and keeps the first one that
+  passes. Every note records `attempt`, `prompt_version` and `validation_failed` (the last
+  attempt still fails). Retry rates are reported; notes that still fail are excluded from the
+  primary analysis, never silently dropped.
+- **Prompt versions.** `render/prompts.PROMPT_VERSION` is bumped on any wording change, and a
+  whole cohort is rendered under one version. v3 followed the 300-note stage 1 (5% judge
+  failures on v2: heart-rate leaks through rhythm descriptors, omitted negations, HEART history
+  leaking through pain characterisation).
 - **Renderer-family bias.** `renders` holds named render sets over the same cases (e.g.
   `sonnet` for all cases, `local` for a 25-per-calculator subset) for the 2×2 renderer ×
   extractor-family comparison in M4.

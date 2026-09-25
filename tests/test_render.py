@@ -170,6 +170,7 @@ def test_export_review() -> None:
         provider="session",
         model="m",
         cache_key="k",
+        prompt_version="v3",
     )
     md = export_review_sample([note], {CASE.case_id: CASE}, {"curb65": CURB}, {}, 0.2, seed=1)
     assert "curb65-9999" in md and "**not documented**" in md and "urea 7.3 mmol/L" in md

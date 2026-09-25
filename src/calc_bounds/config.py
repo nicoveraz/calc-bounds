@@ -69,6 +69,9 @@ class RenderConfig(Strict):
     locales: list[Literal["en-US", "es-CL"]]
     subset_per_calculator: int | None = None
     """Render only a seeded, coverage-stratified subset of this many cases per calculator."""
+    max_attempts: int = Field(default=3, ge=1)
+    """Re-render a note that fails validation (rule or judge errors) up to this many attempts
+    in total. The kept attempt is recorded on the note."""
 
 
 class ValidationConfig(Strict):

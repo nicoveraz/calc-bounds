@@ -8,6 +8,9 @@ from calc_bounds.render import vocab
 from calc_bounds.render.facts import build_facts
 from calc_bounds.types import NumericDomain, OrdinalDomain
 
+PROMPT_VERSION = "v3"
+"""Bump whenever render prompt wording changes; recorded on every note."""
+
 LOCALE_NAMES = {"en-US": "US English", "es-CL": "Chilean Spanish"}
 
 RENDER_SYSTEM = """\
@@ -40,6 +43,8 @@ Rules:
 given; you may use natural phrasing and abbreviations around them.
 - Express each item in natural clinical language, as a clinician would chart it; do not copy \
 the fact-sheet wording. Numbers, units and ordinal meanings must stay exactly as specified.
+- Every STATE item must appear explicitly in the note, including negative ones (e.g. \
+"no diabetes", "never smoked").
 - Follow each item exactly. Do not add information about any fact-sheet item beyond what it \
 says, and do not include anything that implies an item marked DO NOT MENTION.
 - No blanket or complete statements that would cover a DO NOT MENTION item: no "Medications: \

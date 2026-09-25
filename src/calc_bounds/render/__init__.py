@@ -26,6 +26,11 @@ class RenderedNote(BaseModel):
     provider: str
     model: str
     cache_key: str
+    prompt_version: str
+    attempt: int = 1
+    """Render attempt kept (retries follow failed validation; see pipeline.render_notes)."""
+    validation_failed: bool = False
+    """True when the kept attempt still fails validation after the last allowed attempt."""
     issues: list[ValidationIssue] = []
     """Deterministic (rule) validation. Judge results are stored separately. Failures are
     flagged, never silently dropped."""

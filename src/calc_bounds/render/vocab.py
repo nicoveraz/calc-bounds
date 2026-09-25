@@ -127,7 +127,23 @@ NOT_MENTIONED_HINTS: dict[ParamId, str] = {
         "likely pulmonary embolism is; the plan may list investigations neutrally, without "
         "empiric treatment."
     ),
-    "heart_history": "Do not characterise how typical or suspicious the chest pain is.",
+    "heart_history": (
+        "Limit the history of the presenting complaint to onset and duration; do not describe "
+        "the pain's character, location, radiation, relation to exertion, associated symptoms, "
+        "response to treatment, or a suspected cause."
+    ),
+    "heart_rate": (
+        "No rate or rhythm descriptors that imply a heart rate ('regular rate', 'sinus rhythm', "
+        "'tachycardic', 'bradycardic'); a cardiac exam may mention only heart sounds."
+    ),
+    "resp_rate": (
+        "No descriptors that imply a respiratory rate ('tachypneic', 'unlabored', 'breathing "
+        "comfortably', 'no respiratory distress')."
+    ),
+    "spo2": "No oxygen saturation, pulse oximetry, or statements about oxygenation.",
+    "urea": "No urea/BUN and no 'renal function normal', 'BMP normal' or similar.",
+    "creatinine": "No creatinine and no 'renal function normal', 'BMP normal' or similar.",
+    "weight": "No weight, BMI, or body habitus description.",
     "sex": (
         "Use gender-neutral wording throughout (the patient, they; no he/she, Mr/Ms, or "
         "sex-specific history or examination)."
