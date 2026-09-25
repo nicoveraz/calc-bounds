@@ -70,8 +70,9 @@ The oracle extractor lets `cohort → policy → eval` run with no notes and no 
   values are written as "normal" with probability `normal_as_negation_rate`; otherwise the
   value is stated. Traps are rendering instructions only and never change truth.
 - **Abstention:** if a relevant answer is "not available" and nothing else can settle the
-  category, the policy abstains (`final_category = None`, scored as incorrect and reported as
-  `abstain_rate`). Code policies never guess.
+  category, the policy abstains (`final_category = None`). Code policies never guess. **Primary outcome
+  (decided with the user): abstention counts as incorrect.** Secondary: `coverage` and
+  `accuracy_when_committed`.
 - **Silent missing-as-absent:** a trace records `initial_known`, the constraints before any
   question. A constraint on a not-documented param is counted as a silent error.
 

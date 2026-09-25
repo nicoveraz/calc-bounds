@@ -1,6 +1,7 @@
 """Per-case and aggregate metrics from traces joined with the cohort's ground truth.
 
-Abstention (final_category None) counts as incorrect for accuracy and is reported separately.
+Primary outcome: `accuracy`, where abstention (final_category None) counts as incorrect.
+Secondary: `coverage` (1 - abstain rate) and `accuracy_when_committed`.
 """
 
 import pandas as pd
@@ -53,6 +54,10 @@ def summary(table: pd.DataFrame, by: list[str]) -> pd.DataFrame:
             "n_cases": g.size(),
             "accuracy": g["correct"].mean(),
             "abstain_rate": g["abstained"].mean(),
+            "coverage": 1 - g["abstained"].mean(),
+            "accuracy_when_committed": g.apply(
+                lambda d: d.loc[~d["abstained"], "correct"].mean(), include_groups=False
+            ),
             "premature_commitment_rate": g["premature_commitment"].mean(),
             "mean_questions": g["n_questions"].mean(),
             "median_questions": g["n_questions"].median(),
