@@ -32,4 +32,4 @@ uv run calc-bounds --help
 API keys go in environment variables (named in the run config), never in files under git.
 
 ## Layout
-See `docs/ARCHITECTURE.md`. Status: Milestone 0 (scaffold only; no logic yet).
+See `docs/ARCHITECTURE.md`. Status: Milestone 1 (calculators, units, bounds). Review items: `docs/CALCULATOR_NOTES.md`.

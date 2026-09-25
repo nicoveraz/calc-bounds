@@ -52,7 +52,10 @@ The oracle extractor lets `cohort → policy → eval` run with no notes and no 
 5. **Exact vs interval bounds.** Bool/ordinal enumerated. Numeric step-function params are
    enumerated over the regions between declared `breakpoints` (exact). Continuous scores
    (Cockcroft-Gault) use interval corners, exact when the calculator declares `monotone`.
-   Hypothesis property tests check soundness: every completion's score lies in the bounds; if
+   A missing param is *decision-relevant* if, for some completion of the other unknowns,
+   changing it changes the category (so params that only matter jointly still count). This is
+   exact for point scores; for Cockcroft-Gault it is conservative (all unknowns while
+   undetermined). Hypothesis property tests check soundness: every completion's score lies in the bounds; if
    determined, every completion has the same category.
 6. **One case = one calculator** (a patient case is generated for a target calculator).
 7. **LLM plumbing** is a Protocol with two thin clients; every call goes through
