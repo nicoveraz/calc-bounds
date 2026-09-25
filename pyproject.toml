@@ -1,0 +1,50 @@
+[project]
+name = "calc-bounds"
+version = "0.1.0"
+description = "Model extracts tri-state clinical parameters; code computes scores and decision-relevant questions via score bounds."
+readme = "README.md"
+authors = [
+    { name = "Nicolás Vera Zúñiga", email = "nicovera@quetru.cl" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=1.8.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.3",
+    "openai>=3.19.2",
+    "pandas>=3.0.6",
+    "pydantic>=2.13.5",
+    "pyyaml>=6.0.3",
+    "scikit-learn>=1.9.1",
+    "scipy>=1.18.1",
+    "statsmodels>=0.15.0",
+    "typer>=0.27.2",
+]
+
+[project.scripts]
+calc-bounds = "calc_bounds.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.168.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers -m 'not llm'"
+markers = [
+    "llm: test makes a real LLM API call (skipped by default; run with -m llm)",
+]

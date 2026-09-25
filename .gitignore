@@ -1,0 +1,33 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# --- calc-bounds: never commit real or private data ---
+data/raw/
+data/private/
+.env
+.env.*
+!.env.example
+
+# Caches (LLM response cache, tooling)
+.cache/
+.llm_cache/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.mypy_cache/
+
+# Run outputs (regenerable from configs + cache)
+runs/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

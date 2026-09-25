@@ -1,0 +1,39 @@
+# Example run config (M2 shape): oracle extractor, zero API cost.
+run_id: m2-oracle-s1-s3
+seed: 20260925
+output_dir: runs
+cache_dir: .cache/llm
+max_cost_usd: 0          # 0 = no paid calls allowed
+
+calculators: [heart, curb65, qsofa, perc, wells_pe, cockcroft_gault]
+calculator_options:
+  cockcroft_gault:
+    thresholds_ml_min: [30, 60]   # TODO(physician-review): dosing cutoffs to use
+
+cohort:
+  n_per_calculator: 200
+  missingness: 0.3
+  negation_rate: 0.5
+  min_undetermined_fraction: 0.4
+  trap_rates:
+    multiple_encounters: 0.1
+    negation: 0.2
+    mixed_units: 0.1
+    contradictory_values: 0.05
+    comorbidity_via_medication: 0.1
+
+extraction:
+  kind: oracle
+
+simulator:
+  unavailable_rate:
+    troponin: 0.1
+
+policies: [s1_ask_all, s3_bounds]
+
+# Providers are referenced by key from render/extraction/S2. Model names live only here.
+providers:
+  local:
+    kind: openai_compat
+    model: REPLACE_ME
+    base_url: http://localhost:8000/v1
