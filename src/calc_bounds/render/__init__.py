@@ -3,36 +3,39 @@
 Never translate one rendered note into another locale. Style guides live in render/styles/.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel
 
-from calc_bounds.cohort import PatientCase
 from calc_bounds.types import ParamId
 
 
 class ValidationIssue(BaseModel):
-    param: ParamId
+    param: ParamId | None
+    source: Literal["rule", "judge"]
+    severity: Literal["error", "warning"]
     problem: str
-    """e.g. 'documented value missing', 'negation not expressed', 'not-documented inferable'."""
 
 
 class RenderedNote(BaseModel):
     case_id: str
+    render: str
+    """Name of the render set (config `renders` key)."""
     locale: str
     text: str
     provider: str
     model: str
+    cache_key: str
     issues: list[ValidationIssue] = []
-    """Filled by the validation pass. Failures are flagged, never silently dropped."""
+    """Deterministic (rule) validation. Judge results are stored separately. Failures are
+    flagged, never silently dropped."""
 
 
-def render_note(case: PatientCase, locale: str, style_guide: str) -> RenderedNote:
-    raise NotImplementedError  # M3
-
-
-def validate_note(case: PatientCase, note: RenderedNote) -> list[ValidationIssue]:
-    raise NotImplementedError  # M3
-
-
-def export_review_sample(notes: list[RenderedNote], fraction: float, seed: int) -> str:
-    """Markdown with structure and note side by side, for physician review."""
-    raise NotImplementedError  # M3
+class JudgeResult(BaseModel):
+    case_id: str
+    render: str
+    locale: str
+    judge_model: str
+    parsed: bool
+    issues: list[ValidationIssue]
+    raw: str

@@ -1,0 +1,63 @@
+# Main experiment run: one cohort, rendered notes, policies. Grows milestone by milestone.
+run_id: main
+seed: 20260925
+output_dir: runs
+cache_dir: .cache/llm
+max_cost_usd: 0          # 0 = no paid API calls (session and local providers cost 0)
+
+calculators: [heart, curb65, qsofa, perc, wells_pe, cockcroft_gault]
+calculator_options:
+  cockcroft_gault:
+    thresholds_ml_min: [30, 60]   # TODO(physician-review): dosing cutoffs to use
+
+cohort:
+  n_per_calculator: 200
+  missingness: 0.3
+  normal_as_negation_rate: 0.5
+  undetermined_fraction: 0.5
+  trap_rates:
+    multiple_encounters: 0.1
+    negation: 0.2
+    mixed_units: 0.1
+    contradictory_values: 0.05
+    comorbidity_via_medication: 0.1
+
+renders:
+  pilot:                  # small pilot before the full render
+    provider: sonnet_session
+    locales: [en-US]
+    subset_per_calculator: 10
+  sonnet:                 # main cohort, all cases
+    provider: sonnet_session
+    locales: [en-US]
+  local:                  # renderer-family bias subset (M4); pick and pull a model first
+    provider: local
+    locales: [en-US]
+    subset_per_calculator: 25
+
+validation:
+  judge_provider: opus_session   # must differ from the renderer model
+  review_fraction: 0.2
+
+extraction:
+  kind: oracle
+
+simulator:
+  unavailable_rate:
+    heart_troponin: 0.1
+
+policies: [s1_ask_all, s3_bounds]
+
+providers:
+  sonnet_session:         # answered offline by a Claude Code session (Sonnet 5 subagents)
+    kind: session
+    model: claude-sonnet-5
+  opus_session:
+    kind: session
+    model: claude-opus-5-5
+  local:
+    kind: openai_compat
+    model: REPLACE_ME     # Ollama model tag, chosen before the bias-subset render
+    base_url: http://localhost:11434/v1
+    temperature: 0.0
+    seed: 20260925

@@ -28,15 +28,40 @@ def cohort(config: Path) -> None:
 
 
 @app.command()
-def render(config: Path) -> None:
-    """Render notes for each locale and run the validation pass."""
-    _todo("M3")
+def render(
+    config: Path, name: str = typer.Option(..., help="Render set (config `renders` key).")
+) -> None:
+    """Render notes (from cache where available) and run the rule-based validation pass.
+
+    With a `session` provider, cache misses are exported to runs/<run>/pending/ for offline
+    answering; import them with `import-responses`, then run `render` again."""
+    stats = pipeline.render_notes(load_config(config), name)
+    typer.echo(stats)
+    if stats["pending"]:
+        typer.echo(f"{stats['pending']} requests pending: answer them, then import-responses.")
 
 
 @app.command()
-def export_review(config: Path) -> None:
-    """Export a random review sample as Markdown."""
-    _todo("M3")
+def judge(config: Path, name: str = typer.Option(..., help="Render set to validate.")) -> None:
+    """Semantic validation of rendered notes by a judge model (different from the renderer)."""
+    typer.echo(pipeline.judge_notes(load_config(config), name))
+
+
+@app.command()
+def import_responses(config: Path, pending: Path, responses: Path) -> None:
+    """Import offline (session) responses into the LLM cache."""
+    n, problems = pipeline.import_session_responses(load_config(config), pending, responses)
+    typer.echo(f"imported {n} responses")
+    for p in problems:
+        typer.echo(f"  problem: {p}", err=True)
+    if problems:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def export_review(config: Path, name: str = typer.Option(..., help="Render set.")) -> None:
+    """Export a random review sample (validation.review_fraction) as Markdown."""
+    typer.echo(f"wrote {pipeline.export_review(load_config(config), name)}")
 
 
 @app.command()

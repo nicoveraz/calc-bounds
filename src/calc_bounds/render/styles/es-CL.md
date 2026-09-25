@@ -1,3 +1,2 @@
-# Guía de estilo: es-CL
-
-TODO(M5): convenciones de notas de urgencia en Chile.
+- Convenciones de documentación de urgencia en Chile.
+- TODO(M5): completar la guía de estilo es-CL con el médico revisor.
