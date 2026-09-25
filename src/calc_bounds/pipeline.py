@@ -135,9 +135,10 @@ def select_cases(
                 c for c in cases if c.calculator == calc_id and c.determined_from_note == determined
             ]
             k = per_calc // 2 + (per_calc % 2 if not determined else 0)
+            # A fixed seeded permutation, truncated: subsets of different sizes are nested
+            # (pilot within stage 1 within the full set), so cached notes carry over.
             rng = np.random.default_rng(stable_seed(cfg.seed, "subset", calc_id, str(determined)))
-            idx = sorted(rng.choice(len(pool), size=min(k, len(pool)), replace=False))
-            chosen += [pool[i] for i in idx]
+            chosen += [pool[i] for i in rng.permutation(len(pool))[:k]]
     order = {c.case_id: i for i, c in enumerate(cases)}
     return sorted(chosen, key=lambda c: order[c.case_id])
 

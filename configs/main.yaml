@@ -27,6 +27,10 @@ renders:
     provider: sonnet_session
     locales: [en-US]
     subset_per_calculator: 10
+  stage1:                 # first 300 (50 per calculator), then check validation rates
+    provider: sonnet_session
+    locales: [en-US]
+    subset_per_calculator: 50
   sonnet:                 # main cohort, all cases
     provider: sonnet_session
     locales: [en-US]

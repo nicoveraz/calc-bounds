@@ -28,3 +28,14 @@ def test_end_to_end_oracle(tmp_path: Path) -> None:
     assert (out / "accuracy_vs_questions.png").stat().st_size > 0
     ext = pd.read_csv(out / "extraction_by_documented_state.csv")
     assert (ext["correct"] == 1.0).all()  # oracle
+
+
+def test_subsets_are_nested(tmp_path: Path) -> None:
+    from calc_bounds.cohort import generate_cohort
+
+    cfg = load_config(Path("configs/main.yaml"))
+    cfg = cfg.model_copy(update={"cohort": cfg.cohort.model_copy(update={"n_per_calculator": 30})})
+    cases = generate_cohort(list(pipeline.calculators(cfg).values()), cfg.cohort, cfg.seed)
+    small = {c.case_id for c in pipeline.select_cases(cfg, cases, 4)}
+    big = {c.case_id for c in pipeline.select_cases(cfg, cases, 10)}
+    assert len(small) == 24 and len(big) == 60 and small < big
