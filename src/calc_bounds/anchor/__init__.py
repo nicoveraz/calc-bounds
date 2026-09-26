@@ -41,6 +41,11 @@ _UNIT_TOKENS = {
     "mg/dL": "mg/dL",
     "µmol/L": "umol/L",
     "beats per minute": "/min",
+    "beats/min": "/min",
+    "beats/minute": "/min",
+    "bpm": "/min",
+    "per min": "/min",
+    "lbs": "lb",
     "breaths per minute": "/min",
     "mm hg": "mmHg",
     "%": "%",
@@ -63,6 +68,10 @@ class AnchorCase(BaseModel):
 
 def _num(param: ParamId, v: list[Any]) -> float:
     value, unit = float(v[0]), str(v[1])
+    if param == "creatinine" and unit in ("mg/L", "mmol/L"):
+        # Anchor-only units (kept out of units.py so extraction prompts stay unchanged):
+        # 1 mg/L = 0.1 mg/dL; 1 mmol/L = 1000 umol/L = 1000 / 88.4 mg/dL.
+        return value * (0.1 if unit == "mg/L" else 1000 / 88.4)
     if param == "urea":
         # MedCalc gives BUN in mg/dL or mmol/L; BUN mmol/L equals urea mmol/L (molar).
         return to_canonical("urea", value, "bun_mg/dL" if unit == "mg/dL" else "mmol/L")
