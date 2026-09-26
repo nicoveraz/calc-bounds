@@ -16,10 +16,12 @@ MIN_WORDS = 60
 
 
 def _has_number(text: str, number: str) -> bool:
-    return re.search(rf"(?<![\d.,]){re.escape(number)}(?![\d]|[.,]\d)", text) is not None
+    return re.search(rf"(?<![\d.,]){re.escape(number)}(?!\d|[.,]\d)", text) is not None
 
 
-def rule_issues(case: PatientCase, calc: Calculator, text: str) -> list[ValidationIssue]:
+def rule_issues(
+    case: PatientCase, calc: Calculator, text: str, locale: str = "en-US"
+) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
 
     def add(param: str | None, severity: str, problem: str) -> None:
@@ -32,7 +34,7 @@ def rule_issues(case: PatientCase, calc: Calculator, text: str) -> list[Validati
     for term in vocab.FORBIDDEN_TERMS:
         if re.search(rf"\b{re.escape(term)}\b", text, flags=re.IGNORECASE):
             add(None, "error", f"names a score/rule: {term!r}")
-    for f in build_facts(case, calc):
+    for f in build_facts(case, calc, locale):
         for n in f.required_numbers:
             if not _has_number(text, n):
                 add(f.param, "error", f"required number {n} not found")

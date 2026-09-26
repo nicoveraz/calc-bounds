@@ -301,43 +301,56 @@ def render_notes(cfg: RunConfig, render: str) -> dict[str, int]:
     cases = read_jsonl(run_dir(cfg) / "cohort.jsonl", PatientCase)
     calcs = calculators(cfg)
     llm = make_llm(cfg)
-    notes: list[RenderedNote] = []
-    pending: list[PendingItem] = []
-    for case in select_cases(cfg, cases, spec.subset_per_calculator):
+
+    def render_one(
+        case: PatientCase, locale: str
+    ) -> tuple[RenderedNote | None, PendingItem | None]:
         calc = calcs[case.calculator]
-        for locale in spec.locales:
-            for attempt in range(1, spec.max_attempts + 1):
-                req = _render_request(pcfg, case, calc, locale, attempt)
-                try:
-                    resp = llm.complete(req, provider=spec.provider, stage=f"render:{render}")
-                except PendingResponseError as e:
-                    pending.append(PendingItem(key=e.key, request=req))
-                    break
-                rules = rule_issues(case, calc, resp.text)
-                verdict = (
-                    None
-                    if _failed(rules)
-                    else _judge_verdict(cfg, render, llm, case, calc, resp.text)
+        for attempt in range(1, spec.max_attempts + 1):
+            req = _render_request(pcfg, case, calc, locale, attempt)
+            try:
+                resp = llm.complete(req, provider=spec.provider, stage=f"render:{render}")
+            except PendingResponseError as e:
+                return None, PendingItem(key=e.key, request=req)
+            if resp.stop_reason == "error":
+                return None, None  # provider failure (not cached): retried on the next run
+            rules = rule_issues(case, calc, resp.text, locale)
+            verdict = (
+                None if _failed(rules) else _judge_verdict(cfg, render, llm, case, calc, resp.text)
+            )
+            failed = _failed(rules) or (verdict is not None and _failed(verdict))
+            # Not judged yet counts as passing for now: `judge` runs next, and a later
+            # `render` re-checks and retries if the verdict fails.
+            if not failed or attempt == spec.max_attempts:
+                return (
+                    RenderedNote(
+                        case_id=case.case_id,
+                        render=render,
+                        locale=locale,
+                        text=resp.text,
+                        provider=pcfg.kind,
+                        model=pcfg.model,
+                        cache_key=cache_key(req),
+                        prompt_version=PROMPT_VERSION,
+                        attempt=attempt,
+                        validation_failed=failed,
+                        issues=rules,
+                    ),
+                    None,
                 )
-                failed = _failed(rules) or (verdict is not None and _failed(verdict))
-                last = attempt == spec.max_attempts
-                if (not failed and verdict is None) or not failed or last:
-                    notes.append(
-                        RenderedNote(
-                            case_id=case.case_id,
-                            render=render,
-                            locale=locale,
-                            text=resp.text,
-                            provider=pcfg.kind,
-                            model=pcfg.model,
-                            cache_key=cache_key(req),
-                            prompt_version=PROMPT_VERSION,
-                            attempt=attempt,
-                            validation_failed=failed,
-                            issues=rules,
-                        )
-                    )
-                    break
+        return None, None
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    tasks = [
+        (c, loc)
+        for c in select_cases(cfg, cases, spec.subset_per_calculator)
+        for loc in spec.locales
+    ]
+    with ThreadPoolExecutor(max_workers=spec.max_workers) as pool:
+        outcomes = list(pool.map(lambda t: render_one(*t), tasks))
+    notes = [n for n, _ in outcomes if n is not None]
+    pending = [p for _, p in outcomes if p is not None]
     write_jsonl(notes_path(cfg, render), notes)
     _finish_pending(pending_path(cfg, "render", render), pending)
     return {
@@ -359,9 +372,8 @@ def judge_notes(cfg: RunConfig, render: str) -> dict[str, int]:
     cases = {c.case_id: c for c in read_jsonl(run_dir(cfg) / "cohort.jsonl", PatientCase)}
     calcs = calculators(cfg)
     llm = make_llm(cfg)
-    results: list[JudgeResult] = []
-    pending: list[PendingItem] = []
-    for note in read_jsonl(notes_path(cfg, render), RenderedNote):
+
+    def judge_one(note: RenderedNote) -> tuple[JudgeResult | None, PendingItem | None]:
         case = cases[note.case_id]
         calc = calcs[case.calculator]
         req = _judge_request(cfg, render, calc, note.text)
@@ -369,8 +381,9 @@ def judge_notes(cfg: RunConfig, render: str) -> dict[str, int]:
         try:
             resp = llm.complete(req, provider=judge, stage=f"judge:{render}")
         except PendingResponseError as e:
-            pending.append(PendingItem(key=e.key, request=req))
-            continue
+            return None, PendingItem(key=e.key, request=req)
+        if resp.stop_reason == "error":
+            return None, None
         items = parse_judge(resp.text)
         issues = (
             judge_issues(case, calc, note.text, items)
@@ -381,7 +394,7 @@ def judge_notes(cfg: RunConfig, render: str) -> dict[str, int]:
                 )
             ]
         )
-        results.append(
+        return (
             JudgeResult(
                 case_id=note.case_id,
                 render=render,
@@ -390,8 +403,16 @@ def judge_notes(cfg: RunConfig, render: str) -> dict[str, int]:
                 parsed=items is not None,
                 issues=issues,
                 raw=resp.text,
-            )
+            ),
+            None,
         )
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=cfg.renders[render].max_workers) as pool:
+        outcomes = list(pool.map(judge_one, read_jsonl(notes_path(cfg, render), RenderedNote)))
+    results = [r for r, _ in outcomes if r is not None]
+    pending = [p for _, p in outcomes if p is not None]
     write_jsonl(run_dir(cfg) / "notes" / f"{render}.judge.jsonl", results)
     _finish_pending(pending_path(cfg, "judge", render), pending)
     return {

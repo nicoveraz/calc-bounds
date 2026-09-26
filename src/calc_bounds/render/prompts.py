@@ -25,7 +25,7 @@ def style_guide(locale: str) -> str:
 
 
 def render_prompt(case: PatientCase, calc: Calculator, locale: str) -> str:
-    facts = build_facts(case, calc)
+    facts = build_facts(case, calc, locale)
     lines = "\n".join(f"- [{f.param}] {f.instruction}" for f in facts)
     return f"""\
 Write one clinical note in {LOCALE_NAMES[locale]} ({locale}).

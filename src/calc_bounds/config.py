@@ -75,6 +75,8 @@ class RenderConfig(Strict):
     judge_provider: str | None = None
     """Override `validation.judge_provider` for this render set."""
     max_attempts: int = Field(default=3, ge=1)
+    max_workers: int = Field(default=1, ge=1)
+    """Concurrent render/judge requests (scripted providers such as claude_cli)."""
     """Re-render a note that fails validation (rule or judge errors) up to this many attempts
     in total. The kept attempt is recorded on the note."""
 

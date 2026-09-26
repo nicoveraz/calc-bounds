@@ -230,3 +230,13 @@ def test_judge_implied_is_warning_for_documented_error_for_not_documented() -> N
     assert ("age", "error") in [
         (i.param, i.severity) for i in judge_issues(CASE, CURB, GOOD, items)
     ]
+
+
+def test_es_cl_decimal_comma() -> None:
+    assert fmt(7.3, "es-CL") == "7,3" and fmt(112.0, "es-CL") == "112" and fmt(7.3) == "7.3"
+    facts = {f.param: f for f in build_facts(CASE, CURB, "es-CL")}
+    assert facts["urea"].required_numbers == ["7,3"]
+    es_note = GOOD.replace("urea 7.3 mmol/L", "urea 7,3 mmol/L")
+    assert not [i for i in rule_issues(CASE, CURB, es_note, "es-CL") if i.severity == "error"]
+    assert any(i.param == "urea" for i in rule_issues(CASE, CURB, GOOD, "es-CL"))
+    assert "Chilean Spanish" in render_prompt(CASE, CURB, "es-CL")
