@@ -34,4 +34,4 @@ Outputs land in `runs/<run_id>/`: `cohort.jsonl`, `traces.jsonl`, `cases.csv`,
 API keys go in environment variables (named in the run config), never in files under git.
 
 ## Layout
-See `docs/ARCHITECTURE.md`. Status: Milestone 2 (cohort, simulator, S1/S3 with oracle extraction). Review items: `docs/CALCULATOR_NOTES.md`.
+See `docs/ARCHITECTURE.md`. Status: Milestone 4 (LLM extractors, calibration, anchor). Results: `docs/RESULTS_M4.md`. Review items: `docs/CALCULATOR_NOTES.md`.
