@@ -98,3 +98,83 @@ def test_session_render_retries_failed_notes(tmp_path: Path) -> None:
     assert sum(n.attempt == 2 for n in notes) == needs_numbers > 0
     assert not any(n.validation_failed for n in notes)
     assert all(n.prompt_version == "v3" for n in notes)
+
+
+def test_llm_extraction_pipeline_with_fake_client(tmp_path: Path, monkeypatch) -> None:
+    """extract -> calibrate -> policies -> eval, with a fake client that answers from truth."""
+    import json
+
+    from calc_bounds.io import write_jsonl
+    from calc_bounds.llm import LLMResponse, Usage
+    from calc_bounds.render import RenderedNote
+    from calc_bounds.types import DocumentedState as D
+    from calc_bounds.types import OrdinalDomain
+
+    raw = yaml.safe_load(Path("configs/main.yaml").read_text())
+    raw.update(output_dir=str(tmp_path / "runs"), cache_dir=str(tmp_path / "cache"))
+    raw["calculators"] = ["qsofa", "heart"]
+    raw["cohort"]["n_per_calculator"] = 10
+    raw["simulator"] = {"unavailable_rate": {}}
+    raw["extraction"] = {"kind": "llm", "extractor": "haiku", "render": "sonnet"}
+    cfg_path = tmp_path / "cfg.yaml"
+    cfg_path.write_text(yaml.safe_dump(raw))
+    cfg = load_config(cfg_path)
+    pipeline.make_cohort(cfg)
+    cases = pipeline.read_jsonl(pipeline.run_dir(cfg) / "cohort.jsonl", pipeline.PatientCase)
+    calcs = pipeline.calculators(cfg)
+
+    # Notes: a line per documented param, so every quote is an exact substring.
+    notes = []
+    for c in cases:
+        lines = [f"{p}: {c.truth[p]} ({s.value})" for p, s in c.documented.items()]
+        notes.append(
+            RenderedNote(
+                case_id=c.case_id,
+                render="sonnet",
+                locale="en-US",
+                text="\n".join(lines),
+                provider="x",
+                model="x",
+                cache_key=c.case_id,
+                prompt_version="v3",
+            )
+        )
+    write_jsonl(pipeline.notes_path(cfg, "sonnet"), notes)
+    by_text = {n.text: next(c for c in cases if c.case_id == n.case_id) for n in notes}
+
+    class Fake:
+        def complete(self, request):
+            note = request.messages[0]["content"].split("<note>\n")[1].split("\n</note>")[0]
+            case = by_text[note]
+            out = {}
+            for p in calcs[case.calculator].parameters:
+                s, v = case.documented[p.id], case.truth[p.id]
+                line = next(x for x in note.splitlines() if x.startswith(p.id + ":"))
+                status = {D.POSITIVE: "present", D.NEGATIVE: "absent", D.NOT_DOCUMENTED: "unknown"}[
+                    s
+                ]
+                value = (
+                    p.domain.levels[int(v)]
+                    if isinstance(p.domain, OrdinalDomain)
+                    else (None if isinstance(v, bool) else v)
+                )
+                out[p.id] = {
+                    "status": status,
+                    "value": value if status == "present" else None,
+                    "unit": None,
+                    "evidence": line if status != "unknown" else None,
+                    "confidence": 0.9,
+                }
+            return LLMResponse(text=json.dumps(out), usage=Usage())
+
+    monkeypatch.setattr(pipeline, "make_client", lambda _cfg: Fake())
+    stats = pipeline.extract_notes(cfg, "haiku", "sonnet")
+    assert stats == {"notes": 20, "rejected_claims": 0, "cached": 0}
+    assert pipeline.extract_notes(cfg, "haiku", "sonnet")["cached"] == 20
+    report = json.loads(pipeline.calibrate(cfg, "haiku", "sonnet").read_text())
+    assert report["test_accuracy_of_claims"] == 1.0
+    pipeline.run_policies(cfg)
+    out = pipeline.evaluate(cfg)
+    summary = pd.read_csv(out / "summary.csv").set_index("policy")
+    assert (summary["accuracy"] == 1.0).all()  # perfect fake extraction -> oracle-like results
+    assert out.name == "haiku__sonnet"

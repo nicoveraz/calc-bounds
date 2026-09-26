@@ -70,6 +70,27 @@ def run(config: Path) -> None:
     typer.echo(f"wrote {pipeline.run_policies(load_config(config))}")
 
 
+@app.command()
+def extract(
+    config: Path,
+    extractor: str = typer.Option(..., help="Key in `extractors`."),
+    render: str = typer.Option(..., help="Render set whose notes to extract."),
+    per_calc: int | None = typer.Option(None, help="Pilot: nested subset per calculator."),
+) -> None:
+    """Run an LLM extractor over rendered notes (cache-first)."""
+    typer.echo(pipeline.extract_notes(load_config(config), extractor, render, per_calc))
+
+
+@app.command()
+def calibrate(
+    config: Path,
+    extractor: str = typer.Option(...),
+    render: str = typer.Option(...),
+) -> None:
+    """Fit calibration on the dev split and report Brier/ECE on the test split."""
+    typer.echo(f"wrote {pipeline.calibrate(load_config(config), extractor, render)}")
+
+
 @app.command(name="eval")
 def evaluate(config: Path) -> None:
     """Compute metrics and plots from traces."""

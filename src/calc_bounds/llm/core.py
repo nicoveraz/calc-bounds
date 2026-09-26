@@ -1,6 +1,7 @@
 """Cache, budget and the `LLM` entry point used by every stage that calls a model."""
 
 import json
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol
@@ -47,7 +48,7 @@ class DiskCache:
             "request": request.model_dump(mode="json"),
             "response": response.model_dump(mode="json"),
         }
-        tmp = path.with_suffix(".tmp")
+        tmp = path.with_suffix(f".{threading.get_ident()}.tmp")
         tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=1))
         tmp.replace(path)
 
@@ -69,14 +70,16 @@ class LLM:
         self.max_cost_usd = max_cost_usd
         self.ledger_path = ledger_path
         self.spent_usd = 0.0
+        self._lock = threading.Lock()
 
     def client(self, name: str) -> LLMClient:
         """Clients are created lazily, so configs may name providers a run never calls."""
         if isinstance(self._clients, dict):
             return self._clients[name]
-        if name not in self._made:
-            self._made[name] = self._clients(name)
-        return self._made[name]
+        with self._lock:
+            if name not in self._made:
+                self._made[name] = self._clients(name)
+            return self._made[name]
 
     def complete(self, request: LLMRequest, *, provider: str, stage: str = "") -> LLMResponse:
         """`provider` is the config key used to route the call; the cache key depends only on
@@ -100,14 +103,14 @@ class LLM:
             e.key = key
             raise
         self.cache.put(key, request, response)
-        self.spent_usd += response.usage.cost_usd
+        with self._lock:
+            self.spent_usd += response.usage.cost_usd
         self._log(key, request, response, stage)
         return response
 
     def _log(self, key: str, request: LLMRequest, response: LLMResponse, stage: str) -> None:
         if self.ledger_path is None:
             return
-        self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
         row = {
             "stage": stage,
             "key": key,
@@ -115,8 +118,10 @@ class LLM:
             "model": request.model,
             **response.usage.model_dump(),
         }
-        with self.ledger_path.open("a") as f:
-            f.write(json.dumps(row) + "\n")
+        with self._lock:
+            self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.ledger_path.open("a") as f:
+                f.write(json.dumps(row) + "\n")
 
 
 def cost(usage: Usage, price_in: float, price_out: float) -> float:

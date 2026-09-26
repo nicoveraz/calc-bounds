@@ -14,7 +14,7 @@ class Strict(BaseModel):
 
 
 class ProviderConfig(Strict):
-    kind: Literal["anthropic", "openai_compat", "session"]
+    kind: Literal["anthropic", "openai_compat", "session", "claude_cli", "ollama"]
     model: str
     """Exact model id. For `session`, the model that answers offline (recorded, not called)."""
     base_url: str | None = None
@@ -23,25 +23,28 @@ class ProviderConfig(Strict):
     """Name of the env var holding the key; the key itself never goes in config."""
     max_tokens: int = 4096
     effort: Literal["low", "medium", "high", "xhigh", "max"] | None = None
-    """anthropic only (output_config.effort)."""
+    """anthropic / claude_cli (output_config.effort / --effort)."""
     temperature: float | None = None
-    """openai_compat only; current Claude models reject sampling parameters."""
+    """openai_compat / ollama only; current Claude models reject sampling parameters."""
     seed: int | None = None
-    """openai_compat only."""
+    """openai_compat / ollama only."""
+    think: bool | None = None
+    """ollama only: enable/disable the model's thinking mode."""
     price_per_mtok_in: float = 0.0
     price_per_mtok_out: float = 0.0
 
     @model_validator(mode="after")
     def _check(self) -> Self:
-        if self.kind == "anthropic" and (self.temperature is not None or self.seed is not None):
-            raise ValueError("anthropic: temperature/seed are not supported by current models")
+        claude = self.kind in ("anthropic", "claude_cli")
+        if claude and (self.temperature is not None or self.seed is not None):
+            raise ValueError(f"{self.kind}: temperature/seed are not supported by current models")
         if self.kind == "openai_compat" and not self.base_url:
             raise ValueError("openai_compat needs base_url")
         return self
 
     def request_params(self) -> dict[str, object]:
         params: dict[str, object] = {"max_tokens": self.max_tokens}
-        for name in ("effort", "temperature", "seed"):
+        for name in ("effort", "temperature", "seed", "think"):
             if (v := getattr(self, name)) is not None:
                 params[name] = v
         return params
@@ -81,11 +84,24 @@ class ValidationConfig(Strict):
     review_fraction: float = 0.2
 
 
+class ExtractorConfig(Strict):
+    provider: str
+    """Key into `providers`."""
+    max_workers: int = Field(default=1, ge=1)
+    """Concurrent requests (1 for a local model; a few for claude_cli)."""
+
+
 class ExtractionConfig(Strict):
+    """Which extraction the policies use."""
+
     kind: Literal["oracle", "llm"]
-    provider: str | None = None
+    extractor: str | None = None
+    """Key into `extractors` (kind llm)."""
+    render: str | None = None
+    """Render set whose notes were extracted (kind llm)."""
     calibration: Literal["none", "temperature", "isotonic"] = "none"
-    dev_fraction: float = 0.3
+    dev_fraction: float = Field(default=0.3, gt=0.0, lt=1.0)
+    """Share of cases (per calculator) used only for fitting calibration."""
 
 
 class SimulatorConfig(Strict):
@@ -107,6 +123,7 @@ class RunConfig(Strict):
     """Named render sets, e.g. {"sonnet": ..., "local": ...}; the same cases can be rendered
     by several providers."""
     validation: ValidationConfig = ValidationConfig()
+    extractors: dict[str, ExtractorConfig] = {}
     extraction: ExtractionConfig
     simulator: SimulatorConfig = SimulatorConfig()
     policies: list[
@@ -119,6 +136,14 @@ class RunConfig(Strict):
         for name, r in self.renders.items():
             if r.provider not in self.providers:
                 raise ValueError(f"renders.{name}: unknown provider {r.provider!r}")
+        for name, x in self.extractors.items():
+            if x.provider not in self.providers:
+                raise ValueError(f"extractors.{name}: unknown provider {x.provider!r}")
+        if self.extraction.kind == "llm":
+            if self.extraction.extractor not in self.extractors:
+                raise ValueError("extraction.extractor must name an entry in `extractors`")
+            if self.extraction.render not in self.renders:
+                raise ValueError("extraction.render must name an entry in `renders`")
         judge = self.validation.judge_provider
         if judge is not None and judge not in self.providers:
             raise ValueError(f"validation.judge_provider: unknown provider {judge!r}")

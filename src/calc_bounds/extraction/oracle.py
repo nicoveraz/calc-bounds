@@ -60,3 +60,15 @@ class OracleExtractor:
         return ExtractionResult(
             case_id=case_id, values=oracle_extractions(params, case.truth, case.documented)
         )
+
+
+class PrecomputedExtractor:
+    """Serves extractions computed earlier by `pipeline.extract_notes` (LLM calls happen once
+    per note, not once per policy)."""
+
+    def __init__(self, name: str, results: Mapping[str, ExtractionResult]) -> None:
+        self.name = name
+        self.results = results
+
+    def extract(self, case_id: str, note: str, params: list[ParameterSpec]) -> ExtractionResult:
+        return self.results[case_id]

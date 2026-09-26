@@ -9,8 +9,14 @@ from calc_bounds.cohort import PatientCase, generate_cohort
 from calc_bounds.cohort.generate import stable_seed
 from calc_bounds.config import ProviderConfig, RunConfig
 from calc_bounds.eval import metrics, plots
-from calc_bounds.extraction import Extractor
-from calc_bounds.extraction.oracle import OracleExtractor
+from calc_bounds.extraction import ExtractionResult, Extractor
+from calc_bounds.extraction.llm import (
+    EXTRACT_SYSTEM,
+    extraction_prompt,
+    extraction_schema,
+    parse_extraction,
+)
+from calc_bounds.extraction.oracle import OracleExtractor, PrecomputedExtractor
 from calc_bounds.io import read_jsonl, write_jsonl
 from calc_bounds.llm import LLM, DiskCache, LLMRequest, PendingResponseError, cache_key
 from calc_bounds.llm.clients import make_client
@@ -54,7 +60,20 @@ def make_cohort(cfg: RunConfig) -> Path:
 def _extractor(cfg: RunConfig, cases: list[PatientCase]) -> Extractor:
     if cfg.extraction.kind == "oracle":
         return OracleExtractor({c.case_id: c for c in cases})
-    raise NotImplementedError("LLM extraction arrives in M4")
+    x, r = cfg.extraction.extractor, cfg.extraction.render
+    assert x is not None and r is not None
+    results = read_jsonl(extractions_path(cfg, x, r), ExtractionResult)
+    return PrecomputedExtractor(f"{x}__{r}", {res.case_id: res for res in results})
+
+
+def extraction_label(cfg: RunConfig) -> str:
+    if cfg.extraction.kind == "oracle":
+        return "oracle"
+    return f"{cfg.extraction.extractor}__{cfg.extraction.render}"
+
+
+def traces_path(cfg: RunConfig) -> Path:
+    return run_dir(cfg) / "traces" / f"{extraction_label(cfg)}.jsonl"
 
 
 def run_policies(cfg: RunConfig) -> Path:
@@ -62,6 +81,8 @@ def run_policies(cfg: RunConfig) -> Path:
     cases = read_jsonl(out / "cohort.jsonl", PatientCase)
     calcs = calculators(cfg)
     extractor = _extractor(cfg, cases)
+    if isinstance(extractor, PrecomputedExtractor):  # e.g. a pilot subset
+        cases = [c for c in cases if c.case_id in extractor.results]
     missing = [p for p in cfg.policies if p not in POLICIES]
     if missing:
         raise NotImplementedError(f"policies not implemented yet: {missing}")
@@ -77,14 +98,15 @@ def run_policies(cfg: RunConfig) -> Path:
             clinician = SimulatedClinician(case.truth, unavailable)
             note = ""  # M2: oracle extraction needs no note; rendered notes arrive in M3.
             traces.append(POLICIES[pid].run(case, note, calc, extractor, clinician))
-    write_jsonl(out / "traces.jsonl", traces)
-    return out / "traces.jsonl"
+    write_jsonl(traces_path(cfg), traces)
+    return traces_path(cfg)
 
 
 def evaluate(cfg: RunConfig) -> Path:
-    out = run_dir(cfg)
-    cases = read_jsonl(out / "cohort.jsonl", PatientCase)
-    traces = read_jsonl(out / "traces.jsonl", Trace)
+    cases = read_jsonl(run_dir(cfg) / "cohort.jsonl", PatientCase)
+    traces = read_jsonl(traces_path(cfg), Trace)
+    out = run_dir(cfg) / "eval" / extraction_label(cfg)
+    out.mkdir(parents=True, exist_ok=True)
     table = metrics.case_table(cases, traces)
     table.to_csv(out / "cases.csv", index=False)
     overall = metrics.summary(table, ["policy"])
@@ -94,6 +116,7 @@ def evaluate(cfg: RunConfig) -> Path:
     per_calc.to_csv(out / "summary_by_calculator.csv", index=False)
     by_coverage.to_csv(out / "summary_by_coverage.csv", index=False)
     ext = metrics.extraction_table(cases, traces)
+    ext.to_csv(out / "extraction_claims.csv", index=False)
     ext.groupby(["policy", "documented"])["correct"].mean().reset_index().to_csv(
         out / "extraction_by_documented_state.csv", index=False
     )
@@ -340,4 +363,115 @@ def export_review(cfg: RunConfig, render: str) -> Path:
     out = run_dir(cfg) / "review" / f"{render}.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(md)
+    return out
+
+
+# --- M4: LLM extraction and calibration ---------------------------------------------------------
+
+
+def extractions_path(cfg: RunConfig, extractor: str, render: str) -> Path:
+    return run_dir(cfg) / "extractions" / f"{extractor}__{render}.jsonl"
+
+
+def _extraction_request(cfg: RunConfig, extractor: str, calc: Calculator, note: str) -> LLMRequest:
+    pcfg = cfg.providers[cfg.extractors[extractor].provider]
+    req = _request(pcfg, EXTRACT_SYSTEM, extraction_prompt(note, calc))
+    req.params["format"] = extraction_schema(calc)
+    if pcfg.kind == "ollama":
+        req.params["logprobs"] = True
+        req.params["top_logprobs"] = 3
+    return req
+
+
+def extract_notes(
+    cfg: RunConfig, extractor: str, render: str, per_calc: int | None = None
+) -> dict[str, int]:
+    """Run an LLM extractor over a render set's notes (cache-first, concurrent). Notes shared
+    by several cases are extracted once. `per_calc` restricts to the nested subset used for
+    pilots."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    xcfg = cfg.extractors[extractor]
+    cases = read_jsonl(run_dir(cfg) / "cohort.jsonl", PatientCase)
+    keep = {c.case_id for c in select_cases(cfg, cases, per_calc)}
+    by_id = {c.case_id: c for c in cases}
+    calcs = calculators(cfg)
+    notes = [n for n in read_jsonl(notes_path(cfg, render), RenderedNote) if n.case_id in keep]
+    llm = make_llm(cfg)
+
+    def work(note: RenderedNote) -> ExtractionResult:
+        calc = calcs[by_id[note.case_id].calculator]
+        req = _extraction_request(cfg, extractor, calc, note.text)
+        resp = llm.complete(req, provider=xcfg.provider, stage=f"extract:{extractor}:{render}")
+        result = parse_extraction(note.case_id, note.text, calc, resp.text, resp.logprobs)
+        return result.model_copy(
+            update={"usage": resp.usage, "extractor": extractor, "render": render}
+        )
+
+    # Unique texts first (identical notes hit the cache), preserving case order in the output.
+    with ThreadPoolExecutor(max_workers=xcfg.max_workers) as pool:
+        results = list(pool.map(work, notes))
+    out = extractions_path(cfg, extractor, render)
+    write_jsonl(out, results)
+    return {
+        "notes": len(results),
+        "rejected_claims": sum(len(r.rejected) for r in results),
+        "cached": sum(bool(r.usage and r.usage.cached) for r in results),
+    }
+
+
+def dev_cases(cfg: RunConfig, cases: list[PatientCase]) -> set[str]:
+    """Seeded per-calculator dev split (for calibration fitting only)."""
+    dev: set[str] = set()
+    for calc_id in cfg.calculators:
+        ids = sorted(c.case_id for c in cases if c.calculator == calc_id)
+        rng = np.random.default_rng(stable_seed(cfg.seed, "dev-split", calc_id))
+        k = round(cfg.extraction.dev_fraction * len(ids))
+        dev |= {ids[i] for i in rng.permutation(len(ids))[:k]}
+    return dev
+
+
+def calibrate(cfg: RunConfig, extractor: str, render: str) -> Path:
+    """Fit calibrators on the dev split; report Brier/ECE before and after on the test split."""
+    import json
+
+    from calc_bounds.eval.metrics import claim_correct
+    from calc_bounds.extraction import calibration as cal
+
+    cases = {c.case_id: c for c in read_jsonl(run_dir(cfg) / "cohort.jsonl", PatientCase)}
+    results = read_jsonl(extractions_path(cfg, extractor, render), ExtractionResult)
+    dev = dev_cases(cfg, list(cases.values()))
+    rows = []
+    for r in results:
+        for pid, e in r.values.items():
+            if e.kind == "unknown":
+                continue
+            rows.append(
+                {
+                    "case_id": r.case_id,
+                    "dev": r.case_id in dev,
+                    "source": e.confidence_source,  # type: ignore[union-attr]
+                    "confidence": e.confidence,  # type: ignore[union-attr]
+                    "correct": claim_correct(cases[r.case_id], pid, e),
+                }
+            )
+    report: dict[str, object] = {"extractor": extractor, "render": render, "n_claims": len(rows)}
+    d = [x for x in rows if x["dev"]]
+    t = [x for x in rows if not x["dev"]]
+    tc = np.array([x["confidence"] for x in t])
+    ty = np.array([x["correct"] for x in t])
+    for method in ("none", "temperature", "isotonic"):
+        c = cal.fit(method, [x["confidence"] for x in d], [x["correct"] for x in d])
+        p = c.transform(tc)
+        report[method] = {
+            "calibrator": c.model_dump(),
+            "test_brier": cal.brier(p, ty),
+            "test_ece": cal.ece(p, ty),
+            "test_reliability": cal.reliability(p, ty),
+        }
+    report["confidence_sources"] = sorted({str(x["source"]) for x in rows})
+    report["test_accuracy_of_claims"] = float(ty.mean()) if len(ty) else None
+    out = run_dir(cfg) / "calibration" / f"{extractor}__{render}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, indent=2))
     return out

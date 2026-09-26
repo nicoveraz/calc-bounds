@@ -1,0 +1,97 @@
+import json
+import math
+
+import pytest
+
+from calc_bounds.bounds import Exact, Interval, from_extractions
+from calc_bounds.calculators import REGISTRY
+from calc_bounds.extraction.confidence import field_confidence
+from calc_bounds.extraction.llm import extraction_prompt, extraction_schema, parse_extraction
+from calc_bounds.types import Absent, Present, Unknown
+
+CURB = REGISTRY["curb65"]
+NOTE = (
+    "72M with cough. Alert and oriented, not confused. RR 24 at triage, repeat RR 31. "
+    "BP normal. BUN 23 mg/dL."
+)
+
+
+def item(status: str, value=None, unit=None, evidence=None, confidence=0.9) -> dict:
+    return {
+        "status": status,
+        "value": value,
+        "unit": unit,
+        "evidence": evidence,
+        "confidence": confidence,
+    }
+
+
+def output(**items: dict) -> str:
+    base = {p.id: item("unknown") for p in CURB.parameters}
+    return json.dumps(base | items)
+
+
+def test_prompt_and_schema() -> None:
+    prompt = extraction_prompt(NOTE, CURB)
+    assert NOTE in prompt and "bun_mg/dL" in prompt and "never" in prompt
+    schema = extraction_schema(CURB)
+    assert schema["required"] == [p.id for p in CURB.parameters]
+    assert schema["properties"]["urea"]["properties"]["unit"]["anyOf"][0]["enum"][0] == "mmol/L"
+
+
+def test_parse_tristate_units_and_spans() -> None:
+    text = output(
+        confusion=item("absent", evidence="not confused"),
+        urea=item("present", 23, "bun_mg/dL", "BUN 23 mg/dL"),
+        resp_rate=item("present", 31, "/min", "repeat RR 31"),
+        sbp=item("absent", evidence="BP normal"),
+    )
+    r = parse_extraction("c1", NOTE, CURB, text)
+    assert r.rejected == []
+    assert isinstance(r.values["confusion"], Absent)
+    assert isinstance(r.values["age"], Unknown) and isinstance(r.values["dbp"], Unknown)
+    urea = r.values["urea"]
+    assert isinstance(urea, Present) and urea.unit == "bun_mg/dL"
+    assert NOTE[urea.evidence.start : urea.evidence.end] == "BUN 23 mg/dL"
+    assert urea.confidence_source == "self_reported"
+    known = from_extractions(CURB, r.values)
+    assert isinstance(known["urea"], Exact)
+    assert known["urea"].value == pytest.approx(23 / 2.8014)  # code converts, not the model
+    assert known["sbp"] == Interval(lo=101, hi=139)
+    assert "age" not in known  # Unknown is never Absent
+
+
+def test_rejections_become_unknown_and_are_logged() -> None:
+    text = output(
+        urea=item("present", 23, "bun_mg/dL", "BUN 23mg/dl"),  # not an exact substring
+        age=item("absent", evidence="72M"),  # age cannot be absent
+        resp_rate=item("present", 400, "/min", "repeat RR 31"),  # outside plausible range
+        confusion=item("present", evidence="not confused", value="yes"),
+    )
+    r = parse_extraction("c1", NOTE, CURB, text)
+    reasons = {x.param: x.reason for x in r.rejected}
+    assert set(reasons) == {"urea", "age", "resp_rate"}
+    assert "exact substring" in reasons["urea"]
+    for pid in reasons:
+        assert isinstance(r.values[pid], Unknown)
+    assert isinstance(r.values["confusion"], Present)  # bool value is ignored: present = True
+
+
+def test_unparseable_output() -> None:
+    r = parse_extraction("c1", NOTE, CURB, "sorry, I cannot")
+    assert all(isinstance(v, Unknown) for v in r.values.values())
+    assert r.rejected and r.rejected[0].param == "*"
+
+
+def test_logprob_confidence() -> None:
+    text = '{"a": {"status": "present", "value": 31}, "b": {"status": "unknown", "value": null}}'
+    # Tokenize per character with logprob 0 except the status of "a" (two tokens) and value.
+    toks = [{"token": ch, "logprob": 0.0} for ch in text]
+    a_status = text.index('"present"')
+    toks[a_status + 1]["logprob"] = math.log(0.8)
+    a_value = text.index("31")
+    toks[a_value]["logprob"] = math.log(0.5)
+    assert field_confidence(text, toks, "a") == pytest.approx(0.4)
+    assert field_confidence(text, toks, "b") == pytest.approx(1.0)
+    assert field_confidence(text, toks, "zzz") is None
+    assert field_confidence(text + " ", toks, "a") is None  # tokens must reproduce the text

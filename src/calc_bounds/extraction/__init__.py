@@ -15,7 +15,7 @@ from calc_bounds.types import EvidenceSpan, Extraction, ParameterSpec, ParamId
 
 class RejectedSpan(BaseModel):
     param: ParamId
-    span: EvidenceSpan
+    span: EvidenceSpan | None
     reason: str
 
 
@@ -24,6 +24,8 @@ class ExtractionResult(BaseModel):
     values: dict[ParamId, Extraction]
     rejected: list[RejectedSpan] = []
     usage: Usage | None = None
+    extractor: str = ""
+    render: str = ""
 
 
 class Extractor(Protocol):

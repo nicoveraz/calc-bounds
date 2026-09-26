@@ -14,7 +14,7 @@ from typing import Any
 
 from calc_bounds.config import ProviderConfig
 from calc_bounds.llm import LLMRequest, LLMResponse, Usage
-from calc_bounds.llm.core import PendingResponseError, cost
+from calc_bounds.llm.core import LLMClient, PendingResponseError, cost
 
 
 class RefusalError(RuntimeError):
@@ -121,7 +121,161 @@ class SessionClient:
         raise PendingResponseError("", request)
 
 
-def make_client(cfg: ProviderConfig) -> AnthropicClient | OpenAICompatClient | SessionClient:
+class ClaudeCLIClient:
+    """Claude via headless Claude Code (`claude -p`), billed to the user's subscription.
+
+    Made as close to a plain model call as the CLI allows: our own system prompt replaces
+    Claude Code's, all tools are disabled, MCP servers and dynamic system-prompt sections are
+    excluded, sessions are not persisted, and it runs in an empty directory (no CLAUDE.md).
+    Measured harness overhead is ~1.2k input tokens per call. Structured output uses
+    --json-schema. Usage is recorded; cost_usd is 0 (subscription), and the CLI's list-price
+    estimate is kept in raw["total_cost_usd"]. Multi-message requests are flattened into one
+    transcript prompt (used by the S2 agent loop).
+    """
+
+    MAX_RETRIES = 4
+
+    def __init__(self, cfg: ProviderConfig) -> None:
+        import shutil
+        import tempfile
+        from pathlib import Path
+
+        self.cfg = cfg
+        exe = shutil.which("claude")
+        if exe is None:
+            raise RuntimeError("claude CLI not found on PATH")
+        self.exe = exe
+        self.workdir = Path(tempfile.gettempdir()) / "calc_bounds_claude_cli"
+        self.workdir.mkdir(exist_ok=True)
+
+    @staticmethod
+    def _prompt(request: LLMRequest) -> str:
+        msgs = request.messages
+        if len(msgs) == 1 and msgs[0]["role"] == "user":
+            return str(msgs[0]["content"])
+        return "\n\n".join(f"[{m['role'].upper()}]\n{m['content']}" for m in msgs)
+
+    def complete(self, request: LLMRequest) -> LLMResponse:
+        import json
+        import subprocess
+
+        p = request.params
+        cmd = [
+            self.exe,
+            "-p",
+            "--model",
+            request.model,
+            "--tools",
+            "",
+            "--output-format",
+            "json",
+            "--strict-mcp-config",
+            "--exclude-dynamic-system-prompt-sections",
+            "--no-session-persistence",
+        ]
+        if request.system:
+            cmd += ["--system-prompt", request.system]
+        if "effort" in p:
+            cmd += ["--effort", str(p["effort"])]
+        if "format" in p:
+            cmd += ["--json-schema", json.dumps(p["format"])]
+        last_error = ""
+        for attempt in range(self.MAX_RETRIES):
+            t0 = time.perf_counter()
+            proc = subprocess.run(
+                cmd,
+                input=self._prompt(request),
+                capture_output=True,
+                text=True,
+                cwd=self.workdir,
+                timeout=900,
+            )
+            latency = time.perf_counter() - t0
+            try:
+                out = json.loads(proc.stdout)
+            except json.JSONDecodeError:
+                last_error = (proc.stdout + proc.stderr)[-500:]
+                time.sleep(10 * 2**attempt)
+                continue
+            if out.get("is_error"):
+                last_error = str(out.get("result") or out.get("api_error_status"))
+                if "limit" in last_error.lower() or out.get("api_error_status") in (429, 529):
+                    time.sleep(60 * 2**attempt)  # subscription rate limit: back off
+                    continue
+                raise RuntimeError(f"claude -p error: {last_error}")
+            mu = next(iter((out.get("modelUsage") or {}).values()), {})
+            usage = Usage(
+                input_tokens=int(mu.get("inputTokens", 0))
+                + int(mu.get("cacheReadInputTokens", 0))
+                + int(mu.get("cacheCreationInputTokens", 0)),
+                output_tokens=int(mu.get("outputTokens", 0)),
+                latency_s=latency,
+            )
+            structured = out.get("structured_output")
+            text = json.dumps(structured) if structured is not None else str(out.get("result", ""))
+            return LLMResponse(text=text, usage=usage, stop_reason=out.get("stop_reason"), raw=out)
+        raise RuntimeError(f"claude -p failed after {self.MAX_RETRIES} attempts: {last_error}")
+
+
+class OllamaClient:
+    """Ollama native /api/chat (the OpenAI-compatible endpoint does not return logprobs).
+
+    Standard library only. Supports JSON-schema `format`, `think`, temperature, seed and
+    token logprobs (`logprobs`, `top_logprobs`).
+    """
+
+    def __init__(self, cfg: ProviderConfig) -> None:
+        self.cfg = cfg
+        self.url = (cfg.base_url or "http://localhost:11434").rstrip("/") + "/api/chat"
+
+    def complete(self, request: LLMRequest) -> LLMResponse:
+        import json
+        import urllib.request
+
+        p = request.params
+        messages = ([{"role": "system", "content": request.system}] if request.system else []) + [
+            *request.messages
+        ]
+        options: dict[str, Any] = {"num_predict": p.get("max_tokens", 4096)}
+        for name in ("temperature", "seed"):
+            if name in p:
+                options[name] = p[name]
+        if "seed" in options and p.get("attempt", 1) > 1:
+            options["seed"] = int(options["seed"]) + int(p["attempt"]) - 1
+        body: dict[str, Any] = {
+            "model": request.model,
+            "messages": messages,
+            "stream": False,
+            "options": options,
+        }
+        if "format" in p:
+            body["format"] = p["format"]
+        if "think" in p:
+            body["think"] = p["think"]
+        if p.get("logprobs"):
+            body["logprobs"] = True
+            body["top_logprobs"] = int(p.get("top_logprobs", 5))
+        req = urllib.request.Request(
+            self.url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}
+        )
+        t0 = time.perf_counter()
+        with urllib.request.urlopen(req, timeout=1800) as resp:
+            out = json.loads(resp.read())
+        usage = Usage(
+            input_tokens=int(out.get("prompt_eval_count", 0)),
+            output_tokens=int(out.get("eval_count", 0)),
+            latency_s=time.perf_counter() - t0,
+        )
+        return LLMResponse(
+            text=out["message"].get("content", ""),
+            logprobs=out.get("logprobs"),
+            usage=usage,
+            stop_reason=out.get("done_reason"),
+            raw={k: v for k, v in out.items() if k != "logprobs"},
+        )
+
+
+def make_client(cfg: ProviderConfig) -> LLMClient:
     match cfg.kind:
         case "anthropic":
             return AnthropicClient(cfg)
@@ -129,3 +283,7 @@ def make_client(cfg: ProviderConfig) -> AnthropicClient | OpenAICompatClient | S
             return OpenAICompatClient(cfg)
         case "session":
             return SessionClient(cfg)
+        case "claude_cli":
+            return ClaudeCLIClient(cfg)
+        case "ollama":
+            return OllamaClient(cfg)

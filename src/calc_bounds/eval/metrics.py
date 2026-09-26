@@ -4,11 +4,14 @@ Primary outcome: `accuracy`, where abstention (final_category None) counts as in
 Secondary: `coverage` (1 - abstain rate) and `accuracy_when_committed`.
 """
 
+import math
+
 import pandas as pd
 
 from calc_bounds.cohort import PatientCase
 from calc_bounds.policies import Trace
-from calc_bounds.types import Absent, DocumentedState, Present, Unknown
+from calc_bounds.types import Absent, DocumentedState, Extraction, Present, Unknown
+from calc_bounds.units import UnitError, to_canonical
 
 
 def case_table(cases: list[PatientCase], traces: list[Trace]) -> pd.DataFrame:
@@ -69,35 +72,52 @@ def summary(table: pd.DataFrame, by: list[str]) -> pd.DataFrame:
     return out.reset_index()
 
 
-def extraction_table(cases: list[PatientCase], traces: list[Trace]) -> pd.DataFrame:
-    """Per (policy, case, param): extraction correctness by documented state.
+def claim_correct(case: PatientCase, pid: str, e: Extraction) -> bool:
+    """Is this tri-state extraction right, given the documented state and hidden truth?
 
-    Correct = Present with the true value for documented_positive, Absent for
-    documented_negative, Unknown for not_documented. Numeric values are compared as given
-    (the oracle reports canonical units; LLM extractors are normalized in M4).
+    Present: documented positive and value equal to the truth (numeric in canonical units,
+    relative tolerance 1e-3); Absent: documented negative; Unknown: not documented.
     """
+    state = case.documented[pid]
+    match e:
+        case Present(value=v, unit=unit):
+            if state != DocumentedState.POSITIVE:
+                return False
+            truth = case.truth[pid]
+            if isinstance(truth, bool) or isinstance(v, bool):
+                return bool(v) == bool(truth)
+            if isinstance(truth, int) and not isinstance(truth, bool) and unit is None:
+                return int(v) == truth
+            try:
+                canonical = to_canonical(pid, float(v), unit) if unit else float(v)
+            except (UnitError, ValueError):
+                return False
+            return math.isclose(canonical, float(truth), rel_tol=1e-3, abs_tol=1e-6)
+        case Absent():
+            return state == DocumentedState.NEGATIVE
+        case Unknown():
+            return state == DocumentedState.NOT_DOCUMENTED
+    return False
+
+
+def extraction_table(cases: list[PatientCase], traces: list[Trace]) -> pd.DataFrame:
+    """Per (policy, case, param): extraction correctness by documented state."""
     by_id = {c.case_id: c for c in cases}
     rows = []
     for t in traces:
         case = by_id[t.case_id]
         for pid, e in t.extraction.values.items():
-            state = case.documented[pid]
-            match state:
-                case DocumentedState.POSITIVE:
-                    ok = isinstance(e, Present) and e.value == case.truth[pid]
-                case DocumentedState.NEGATIVE:
-                    ok = isinstance(e, Absent)
-                case DocumentedState.NOT_DOCUMENTED:
-                    ok = isinstance(e, Unknown)
             rows.append(
                 {
                     "policy": t.policy,
                     "calculator": t.calculator,
                     "case_id": t.case_id,
                     "param": pid,
-                    "documented": state.value,
+                    "documented": case.documented[pid].value,
                     "extracted": e.kind,
-                    "correct": ok,
+                    "correct": claim_correct(case, pid, e),
+                    "confidence": getattr(e, "confidence", None),
+                    "confidence_source": getattr(e, "confidence_source", None),
                 }
             )
     return pd.DataFrame(rows)
