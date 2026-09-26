@@ -5,7 +5,7 @@ from calc_bounds.calculators import Calculator
 from calc_bounds.cohort import PatientCase
 from calc_bounds.extraction import Extractor
 from calc_bounds.policies.base import Trace
-from calc_bounds.policies.loop import run_loop
+from calc_bounds.policies.loop import Reason, run_loop
 from calc_bounds.simulator import SimulatedClinician
 from calc_bounds.types import ParamId
 
@@ -25,7 +25,8 @@ class AskAllPolicy:
 
         def choose(
             known: dict[ParamId, Constraint], relevant: list[ParamId], asked: set[ParamId]
-        ) -> ParamId | None:
-            return next((p for p in order if p not in known and p not in asked), None)
+        ) -> tuple[ParamId, Reason] | None:
+            p = next((p for p in order if p not in known and p not in asked), None)
+            return None if p is None else (p, "missing")
 
-        return run_loop(self.id, "missing", choose, case, note, calc, extractor, clinician)
+        return run_loop(self.id, choose, case, note, calc, extractor, clinician)

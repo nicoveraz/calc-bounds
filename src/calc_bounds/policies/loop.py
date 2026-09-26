@@ -1,4 +1,4 @@
-"""Shared ask-and-recompute loop for code-driven policies (S1, S3, S3-bin)."""
+"""Shared ask-and-recompute loop for code-driven policies (S1, S3, S3-bin, S4)."""
 
 from collections.abc import Callable
 from typing import Literal
@@ -17,13 +17,15 @@ from calc_bounds.policies.base import PolicyId, Step, Trace
 from calc_bounds.simulator import SimulatedClinician
 from calc_bounds.types import ParamId
 
-type Chooser = Callable[[dict[ParamId, Constraint], list[ParamId], set[ParamId]], ParamId | None]
-"""(known, relevant, already_asked) -> next param to ask, or None to stop."""
+type Reason = Literal["missing", "decision_relevant", "confidence_echo"]
+type Chooser = Callable[
+    [dict[ParamId, Constraint], list[ParamId], set[ParamId]], tuple[ParamId, Reason] | None
+]
+"""(known, relevant, already_asked) -> (next param to ask, why), or None to stop."""
 
 
 def run_loop(
     policy: PolicyId,
-    reason: Literal["missing", "decision_relevant"],
     choose: Chooser,
     case: PatientCase,
     note: str,
@@ -35,15 +37,19 @@ def run_loop(
 ) -> Trace:
     extraction = extractor.extract(case.case_id, note, list(calc.parameters))
     known = from_extractions(calc, extraction.values, binary=binary)
+    # What is actually known (tri-state), used to judge premature commitment even when the
+    # policy itself reasons over a binary state (S3-bin).
+    tri_known = from_extractions(calc, extraction.values)
     initial_known = dict(known)
     asked: set[ParamId] = set()
     steps: list[Step] = []
     while True:
         bounds = score_bounds(calc, known)
         relevant = decision_relevant_missing(calc, known)
-        param = choose(known, relevant, asked)
-        if param is None:
+        choice = choose(known, relevant, asked)
+        if choice is None:
             break
+        param, reason = choice
         asked.add(param)
         answer = clinician.ask(param)
         steps.append(
@@ -52,7 +58,9 @@ def run_loop(
         if answer.status == "answered":
             assert answer.value is not None
             known[param] = Exact(value=answer.value)
+            tri_known[param] = Exact(value=answer.value)
     determined = len(bounds.categories) == 1
+    truly_determined = len(score_bounds(calc, tri_known).categories) == 1
     exact = {p: c.value for p, c in known.items() if isinstance(c, Exact)}
     complete = len(exact) == len(calc.parameters)
     return Trace(
@@ -65,5 +73,5 @@ def run_loop(
         final_bounds=bounds,
         final_score=calc.score(exact) if complete else None,
         final_category=next(iter(bounds.categories)) if determined else None,
-        committed_while_undetermined=False,
+        committed_while_undetermined=determined and not truly_determined,
     )

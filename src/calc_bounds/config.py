@@ -128,6 +128,8 @@ class RunConfig(Strict):
     extractors: dict[str, ExtractorConfig] = {}
     extraction: ExtractionConfig
     simulator: SimulatorConfig = SimulatorConfig()
+    echo_threshold: float = Field(default=0.9, gt=0.0, le=1.0)
+    """S4: confirm extracted decision-critical values whose calibrated confidence is below."""
     policies: list[
         Literal["s1_ask_all", "s2_llm_agent", "s3_bounds", "s4_bounds_voi_echo", "s3_bin"]
     ]

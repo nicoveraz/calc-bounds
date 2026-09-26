@@ -102,3 +102,104 @@ def test_unavailable_answer_leads_to_abstention_not_a_guess(cohort: list[Patient
         else:
             assert t.final_category == case.true_category
     assert abstained == sum(not c.determined_from_note for c in cohort)
+
+
+def test_s3_bin_premature_commitment_is_measured(cohort: list[PatientCase]) -> None:
+    traces = [_run("s3_bin", c) for c in cohort]
+    premature = [t for t in traces if t.committed_while_undetermined]
+    assert premature, "binary schema should sometimes commit while truly undetermined"
+    for t in [_run("s3_bounds", c) for c in cohort]:
+        assert not t.committed_while_undetermined
+
+
+def test_prior_beliefs_are_distributions() -> None:
+    from calc_bounds.cohort.priors import DEFAULT_PRIORS
+    from calc_bounds.policies.voi_echo import prior_beliefs
+
+    for calc_id, calc in REGISTRY.items():
+        beliefs = prior_beliefs(calc, DEFAULT_PRIORS[calc_id])
+        for pid, b in beliefs.items():
+            assert abs(sum(b.values()) - 1) < 1e-9, (calc_id, pid)
+            assert all(w >= 0 for w in b.values())
+
+
+def _s4(threshold: float = 0.9):
+    from calc_bounds.cohort.priors import DEFAULT_PRIORS
+    from calc_bounds.extraction.calibration import Calibrator
+    from calc_bounds.policies.voi_echo import VoiEchoPolicy
+
+    return VoiEchoPolicy(DEFAULT_PRIORS, Calibrator(method="none"), threshold)
+
+
+def test_s4_with_oracle_matches_s3_accuracy_and_never_echoes(cohort: list[PatientCase]) -> None:
+    s4 = _s4()
+    for case in cohort:
+        calc = REGISTRY[case.calculator]
+        t = s4.run(
+            case, "", calc, OracleExtractor({case.case_id: case}), SimulatedClinician(case.truth)
+        )
+        assert t.final_category == case.true_category
+        assert all(s.reason == "decision_relevant" for s in t.steps)  # oracle confidence = 1
+        assert t.n_questions <= len(decision_relevant_missing_at_start(case))
+
+
+def decision_relevant_missing_at_start(case: PatientCase) -> list[str]:
+    from calc_bounds.bounds import decision_relevant_missing, from_extractions
+    from calc_bounds.extraction.oracle import oracle_extractions
+
+    calc = REGISTRY[case.calculator]
+    ex = oracle_extractions(calc.parameters, case.truth, case.documented)
+    unknown = [p.id for p in calc.parameters if ex[p.id].kind == "unknown"]
+    return unknown if decision_relevant_missing(calc, from_extractions(calc, ex)) else []
+
+
+def test_s4_echo_catches_low_confidence_wrong_value() -> None:
+    from calc_bounds.extraction import ExtractionResult
+    from calc_bounds.extraction.oracle import PrecomputedExtractor
+    from calc_bounds.types import EvidenceSpan, Present
+
+    calc = REGISTRY["qsofa"]
+    truth = {"resp_rate": 24.0, "altered_mentation": True, "sbp": 120.0}  # score 2: positive
+    case = PatientCase(
+        case_id="q",
+        seed=0,
+        calculator="qsofa",
+        truth=truth,
+        documented={
+            "resp_rate": DocumentedState.POSITIVE,
+            "altered_mentation": DocumentedState.POSITIVE,
+            "sbp": DocumentedState.POSITIVE,
+        },
+        true_score=2,
+        true_category="positive",
+        determined_from_note=True,
+    )
+    ev = EvidenceSpan(start=0, end=1, text="x")
+    wrong = ExtractionResult(
+        case_id="q",
+        values={
+            "resp_rate": Present(
+                value=18.0,
+                unit="/min",
+                confidence=0.4,
+                confidence_source="self_reported",
+                evidence=ev,
+            ),  # misread
+            "altered_mentation": Present(
+                value=True, confidence=0.99, confidence_source="self_reported", evidence=ev
+            ),
+            "sbp": Present(
+                value=120.0,
+                unit="mmHg",
+                confidence=0.99,
+                confidence_source="self_reported",
+                evidence=ev,
+            ),
+        },
+    )
+    ext = PrecomputedExtractor("x", {"q": wrong})
+    s3 = POLICIES["s3_bounds"].run(case, "", calc, ext, SimulatedClinician(truth))
+    assert s3.final_category == "negative" and s3.n_questions == 0  # confidently wrong
+    s4 = _s4().run(case, "", calc, ext, SimulatedClinician(truth))
+    assert [(s.question, s.reason) for s in s4.steps] == [("resp_rate", "confidence_echo")]
+    assert s4.final_category == "positive"

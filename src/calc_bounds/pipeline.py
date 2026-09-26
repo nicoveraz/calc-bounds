@@ -11,6 +11,7 @@ from calc_bounds.cohort.generate import stable_seed
 from calc_bounds.config import ProviderConfig, RunConfig
 from calc_bounds.eval import metrics, plots
 from calc_bounds.extraction import ExtractionResult, Extractor
+from calc_bounds.extraction.calibration import Calibrator
 from calc_bounds.extraction.llm import (
     EXTRACT_SYSTEM,
     extraction_prompt,
@@ -22,7 +23,7 @@ from calc_bounds.io import read_jsonl, write_jsonl
 from calc_bounds.llm import LLM, DiskCache, LLMRequest, PendingResponseError, cache_key
 from calc_bounds.llm.clients import make_client
 from calc_bounds.llm.session import PendingItem, import_responses, write_pending
-from calc_bounds.policies import POLICIES, Trace
+from calc_bounds.policies import POLICIES, Policy, Trace
 from calc_bounds.render import JudgeResult, RenderedNote, ValidationIssue
 from calc_bounds.render.export import export_review_sample
 from calc_bounds.render.prompts import (
@@ -68,6 +69,28 @@ def _extractor(cfg: RunConfig, cases: list[PatientCase]) -> Extractor:
     return PrecomputedExtractor(f"{x}__{r}", {res.case_id: res for res in results})
 
 
+def load_calibrator(cfg: RunConfig) -> Calibrator:
+    """The calibrator fitted on the dev split for the configured extraction (none for the
+    oracle, whose confidence is 1)."""
+    import json
+
+    if cfg.extraction.kind == "oracle" or cfg.extraction.calibration == "none":
+        return Calibrator(method="none")
+    path = run_dir(cfg) / "calibration" / f"{extraction_label(cfg)}.json"
+    report = json.loads(path.read_text())
+    return Calibrator.model_validate(report[cfg.extraction.calibration]["calibrator"])
+
+
+def make_policies(cfg: RunConfig) -> dict[str, Policy]:
+    from calc_bounds.cohort.generate import _priors
+    from calc_bounds.policies.voi_echo import VoiEchoPolicy
+
+    priors = {c: _priors(calc, cfg.cohort) for c, calc in calculators(cfg).items()}
+    return dict(POLICIES) | {
+        "s4_bounds_voi_echo": VoiEchoPolicy(priors, load_calibrator(cfg), cfg.echo_threshold)
+    }
+
+
 def extraction_label(cfg: RunConfig) -> str:
     if cfg.extraction.kind == "oracle":
         return "oracle"
@@ -85,7 +108,8 @@ def run_policies(cfg: RunConfig) -> Path:
     extractor = _extractor(cfg, cases)
     if isinstance(extractor, PrecomputedExtractor):  # e.g. a pilot subset
         cases = [c for c in cases if c.case_id in extractor.results]
-    missing = [p for p in cfg.policies if p not in POLICIES]
+    policies = make_policies(cfg)
+    missing = [p for p in cfg.policies if p not in policies]
     if missing:
         raise NotImplementedError(f"policies not implemented yet: {missing}")
     traces: list[Trace] = []
@@ -99,7 +123,7 @@ def run_policies(cfg: RunConfig) -> Path:
         for pid in cfg.policies:
             clinician = SimulatedClinician(case.truth, unavailable)
             note = ""  # M2: oracle extraction needs no note; rendered notes arrive in M3.
-            traces.append(POLICIES[pid].run(case, note, calc, extractor, clinician))
+            traces.append(policies[pid].run(case, note, calc, extractor, clinician))
     write_jsonl(traces_path(cfg), traces)
     return traces_path(cfg)
 

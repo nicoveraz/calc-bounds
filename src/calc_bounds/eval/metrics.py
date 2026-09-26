@@ -23,8 +23,19 @@ def case_table(cases: list[PatientCase], traces: list[Trace]) -> pd.DataFrame:
         case = by_id[t.case_id]
         n_q = t.n_questions
         n_irrelevant = sum(
-            s.question is not None and s.relevant is not None and s.question not in s.relevant
+            s.question is not None
+            and s.relevant is not None
+            and s.reason != "confidence_echo"
+            and s.question not in s.relevant
             for s in t.steps
+        )
+        echo = [s for s in t.steps if s.reason == "confidence_echo"]
+        n_echo_caught = sum(
+            s.answer is not None
+            and s.answer.status == "answered"
+            and s.question is not None
+            and not claim_correct(case, s.question, t.extraction.values[s.question])
+            for s in echo
         )
         not_documented = {
             p for p, s in case.documented.items() if s == DocumentedState.NOT_DOCUMENTED
@@ -42,6 +53,8 @@ def case_table(cases: list[PatientCase], traces: list[Trace]) -> pd.DataFrame:
                 "premature_commitment": t.committed_while_undetermined,
                 "n_questions": n_q,
                 "n_irrelevant_questions": n_irrelevant,
+                "n_echo_questions": len(echo),
+                "n_echo_caught_errors": n_echo_caught,
                 "n_unavailable": sum(
                     s.answer is not None and s.answer.status == "not_available" for s in t.steps
                 ),
@@ -68,6 +81,8 @@ def summary(table: pd.DataFrame, by: list[str]) -> pd.DataFrame:
             "irrelevant_question_rate": g["n_irrelevant_questions"].sum()
             / g["n_questions"].sum().where(lambda s: s > 0),
             "silent_missing_as_absent_per_case": g["silent_missing_as_absent"].mean(),
+            "echo_questions_per_case": g["n_echo_questions"].mean(),
+            "echo_caught_errors": g["n_echo_caught_errors"].sum(),
         }
     )
     return out.reset_index()
