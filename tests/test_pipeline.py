@@ -117,6 +117,8 @@ def test_llm_extraction_pipeline_with_fake_client(tmp_path: Path, monkeypatch) -
     raw["cohort"]["n_per_calculator"] = 10
     raw["simulator"] = {"unavailable_rate": {}}
     raw["extraction"] = {"kind": "llm", "extractor": "haiku", "render": "sonnet"}
+    raw["policies"] = ["s1_ask_all", "s3_bounds", "s4_bounds_voi_echo"]
+    raw["agent"] = None
     cfg_path = tmp_path / "cfg.yaml"
     cfg_path.write_text(yaml.safe_dump(raw))
     cfg = load_config(cfg_path)
