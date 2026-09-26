@@ -57,6 +57,7 @@ def make_cockcroft_gault(thresholds: Sequence[float] = DEFAULT_THRESHOLDS) -> Ca
         score=score,
         # Strictly monotone over the plausible ranges (age < 140, weight > 0, creatinine > 0).
         continuous=frozenset({"age", "weight", "creatinine"}),
+        higher_score_is_higher_risk=False,
     )
 
 

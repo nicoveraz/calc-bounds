@@ -151,3 +151,37 @@ def test_renderer_bias_interaction() -> None:
     assert interaction(df, ("A", "B"), ("a", "b")) == pytest.approx(0.2)
     rep = renderer_bias(df, ("A", "B"), ("a", "b"), n_boot=200)
     assert rep["n_cases"] == 10 and rep["ci95"][0] == pytest.approx(0.2)
+
+
+def test_conservative_fallback_and_triage_direction() -> None:
+    from calc_bounds.bounds import ScoreBounds
+    from calc_bounds.eval.metrics import conservative_category
+    from calc_bounds.extraction import ExtractionResult
+    from calc_bounds.policies import Trace
+
+    def trace(calc: str, cats: set[str], final=None, policy="s3_bounds") -> Trace:
+        return Trace(
+            case_id="x",
+            policy=policy,
+            calculator=calc,
+            extraction=ExtractionResult(case_id="x", values={}),
+            initial_known={},
+            steps=[],
+            final_bounds=ScoreBounds(lo=0, hi=1, scores=None, categories=frozenset(cats)),
+            final_score=None,
+            final_category=final,
+            committed_while_undetermined=False,
+        )
+
+    assert conservative_category(trace("heart", {"low", "moderate"})) == "moderate"
+    assert conservative_category(trace("heart", {"low", "moderate"}, "low")) == "low"
+    # Cockcroft-Gault: lower clearance is higher risk.
+    assert (
+        conservative_category(trace("cockcroft_gault", {"crcl_30_to_lt_60", "crcl_ge_60"}))
+        == "crcl_30_to_lt_60"
+    )
+    # S2 abstention: the calculator's highest-risk category.
+    assert (
+        conservative_category(trace("wells_pe", {"pe_unlikely"}, policy="s2_llm_agent"))
+        == "pe_likely"
+    )

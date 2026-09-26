@@ -66,6 +66,8 @@ class Calculator(BaseModel):
     """Step numeric params and their thresholds."""
     continuous: frozenset[ParamId] = frozenset()
     """Numeric params in which the score is continuous and strictly monotone."""
+    higher_score_is_higher_risk: bool = True
+    """False for Cockcroft-Gault (lower clearance = more dose adjustment needed)."""
 
     @model_validator(mode="after")
     def _check(self) -> Self:
@@ -104,6 +106,14 @@ class Calculator(BaseModel):
     def category_names(self) -> list[str]:
         """Category names in increasing score order."""
         return [c.name for c in sorted(self.categories, key=lambda c: c.lo)]
+
+    def categories_by_risk(self) -> list[str]:
+        """Category names from lowest to highest risk."""
+        names = self.category_names()
+        return names if self.higher_score_is_higher_risk else names[::-1]
+
+    def highest_risk(self, categories: frozenset[str] | set[str]) -> str:
+        return max(categories, key=self.categories_by_risk().index)
 
     def evaluate(self, values: Mapping[ParamId, Value]) -> tuple[float, str]:
         """Score and category for a complete assignment."""

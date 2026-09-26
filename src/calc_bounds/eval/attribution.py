@@ -7,6 +7,7 @@ Categories (checked in order):
                  knew (so it misread or miscomputed; there is no separate extraction step)
   routing      - committed while the category was still undetermined (stopped asking too
                  early, or reasoned over a binary state that hid missing information)
+  clinician    - the (noisy) clinician gave a wrong answer to a question the policy asked
   bounds       - knowledge was correct and determined, yet the category was wrong (would mean a
                  bounds bug; expected to be zero)
 """
@@ -23,6 +24,8 @@ def attribute(case: PatientCase, t: Trace) -> str | None:
         return None
     if t.final_category is None:
         return "abstained"
+    if any(s.answer is not None and s.answer.noise == "wrong" for s in t.steps):
+        return "clinician"
     if t.policy == "s2_llm_agent":
         return "routing" if t.committed_while_undetermined else "extraction"
     if any(not claim_correct(case, pid, e) for pid, e in t.extraction.values.items()):

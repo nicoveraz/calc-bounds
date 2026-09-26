@@ -15,12 +15,26 @@ from calc_bounds.types import Absent, DocumentedState, Extraction, OrdinalDomain
 from calc_bounds.units import UnitError, to_canonical
 
 
+def conservative_category(t: Trace) -> str:
+    """The decision with a conservative fallback: an undecided case gets the highest-risk
+    category still possible (code policies, from their bounds) or the calculator's
+    highest-risk category (S2, which does not track bounds)."""
+    calc = REGISTRY[t.calculator]
+    if t.final_category is not None:
+        return t.final_category
+    if t.policy == "s2_llm_agent" or t.final_bounds is None:
+        return calc.categories_by_risk()[-1]
+    return calc.highest_risk(t.final_bounds.categories)
+
+
 def case_table(cases: list[PatientCase], traces: list[Trace]) -> pd.DataFrame:
     """One row per (policy, case)."""
     by_id = {c.case_id: c for c in cases}
     rows = []
     for t in traces:
         case = by_id[t.case_id]
+        risk = REGISTRY[t.calculator].categories_by_risk()
+        cons = conservative_category(t)
         n_q = t.n_questions
         n_irrelevant = sum(
             s.question is not None
@@ -50,6 +64,10 @@ def case_table(cases: list[PatientCase], traces: list[Trace]) -> pd.DataFrame:
                 "final_category": t.final_category,
                 "correct": t.final_category == case.true_category,
                 "abstained": t.final_category is None,
+                "conservative_category": cons,
+                "conservative_correct": cons == case.true_category,
+                "under_triage": risk.index(cons) < risk.index(case.true_category),
+                "over_triage": risk.index(cons) > risk.index(case.true_category),
                 "premature_commitment": t.committed_while_undetermined,
                 "n_questions": n_q,
                 "n_irrelevant_questions": n_irrelevant,
@@ -72,6 +90,9 @@ def summary(table: pd.DataFrame, by: list[str]) -> pd.DataFrame:
             "accuracy": g["correct"].mean(),
             "abstain_rate": g["abstained"].mean(),
             "coverage": 1 - g["abstained"].mean(),
+            "conservative_accuracy": g["conservative_correct"].mean(),
+            "under_triage_rate": g["under_triage"].mean(),
+            "over_triage_rate": g["over_triage"].mean(),
             "accuracy_when_committed": g.apply(
                 lambda d: d.loc[~d["abstained"], "correct"].mean(), include_groups=False
             ),
