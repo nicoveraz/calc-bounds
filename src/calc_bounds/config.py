@@ -72,6 +72,8 @@ class RenderConfig(Strict):
     locales: list[Literal["en-US", "es-CL"]]
     subset_per_calculator: int | None = None
     """Render only a seeded, coverage-stratified subset of this many cases per calculator."""
+    judge_provider: str | None = None
+    """Override `validation.judge_provider` for this render set."""
     max_attempts: int = Field(default=3, ge=1)
     """Re-render a note that fails validation (rule or judge errors) up to this many attempts
     in total. The kept attempt is recorded on the note."""
@@ -136,6 +138,8 @@ class RunConfig(Strict):
         for name, r in self.renders.items():
             if r.provider not in self.providers:
                 raise ValueError(f"renders.{name}: unknown provider {r.provider!r}")
+            if r.judge_provider is not None and r.judge_provider not in self.providers:
+                raise ValueError(f"renders.{name}: unknown judge provider {r.judge_provider!r}")
         for name, x in self.extractors.items():
             if x.provider not in self.providers:
                 raise ValueError(f"extractors.{name}: unknown provider {x.provider!r}")

@@ -36,6 +36,7 @@ renders:
     locales: [en-US]
   local:                  # renderer-family bias subset: same cases rendered by the local model
     provider: qwen_local
+    judge_provider: opus_cli
     locales: [en-US]
     subset_per_calculator: 25
 
@@ -78,6 +79,9 @@ providers:
     temperature: 0.0
     seed: 20260925
     think: false
+  opus_cli:               # judge for scripted renders (headless Claude Code)
+    kind: claude_cli
+    model: claude-opus-5-5
   haiku_cli:              # Claude via headless Claude Code, billed to the subscription
     kind: claude_cli
     model: claude-haiku-4-5

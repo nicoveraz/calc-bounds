@@ -195,18 +195,22 @@ def _render_request(
     return req
 
 
-def _judge_request(cfg: RunConfig, calc: Calculator, text: str) -> LLMRequest | None:
-    judge = cfg.validation.judge_provider
+def _judge_provider(cfg: RunConfig, render: str) -> str | None:
+    return cfg.renders[render].judge_provider or cfg.validation.judge_provider
+
+
+def _judge_request(cfg: RunConfig, render: str, calc: Calculator, text: str) -> LLMRequest | None:
+    judge = _judge_provider(cfg, render)
     if judge is None:
         return None
     return _request(cfg.providers[judge], JUDGE_SYSTEM, judge_prompt(text, calc))
 
 
 def _judge_verdict(
-    cfg: RunConfig, llm: LLM, case: PatientCase, calc: Calculator, text: str
+    cfg: RunConfig, render: str, llm: LLM, case: PatientCase, calc: Calculator, text: str
 ) -> list[ValidationIssue] | None:
     """Judge issues from the cache only (never calls a model); None if not judged yet."""
-    req = _judge_request(cfg, calc, text)
+    req = _judge_request(cfg, render, calc, text)
     if req is None:
         return []
     cached = llm.cache.get(cache_key(req))
@@ -253,7 +257,9 @@ def render_notes(cfg: RunConfig, render: str) -> dict[str, int]:
                     break
                 rules = rule_issues(case, calc, resp.text)
                 verdict = (
-                    None if _failed(rules) else _judge_verdict(cfg, llm, case, calc, resp.text)
+                    None
+                    if _failed(rules)
+                    else _judge_verdict(cfg, render, llm, case, calc, resp.text)
                 )
                 failed = _failed(rules) or (verdict is not None and _failed(verdict))
                 last = attempt == spec.max_attempts
@@ -286,9 +292,9 @@ def render_notes(cfg: RunConfig, render: str) -> dict[str, int]:
 
 
 def judge_notes(cfg: RunConfig, render: str) -> dict[str, int]:
-    judge = cfg.validation.judge_provider
+    judge = _judge_provider(cfg, render)
     if judge is None:
-        raise ValueError("validation.judge_provider is not configured")
+        raise ValueError("no judge provider configured")
     pcfg = cfg.providers[judge]
     if pcfg.model == cfg.providers[cfg.renders[render].provider].model:
         raise ValueError("judge model must differ from the renderer model")
@@ -300,7 +306,7 @@ def judge_notes(cfg: RunConfig, render: str) -> dict[str, int]:
     for note in read_jsonl(notes_path(cfg, render), RenderedNote):
         case = cases[note.case_id]
         calc = calcs[case.calculator]
-        req = _judge_request(cfg, calc, note.text)
+        req = _judge_request(cfg, render, calc, note.text)
         assert req is not None
         try:
             resp = llm.complete(req, provider=judge, stage=f"judge:{render}")
