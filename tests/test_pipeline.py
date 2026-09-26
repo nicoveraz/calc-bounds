@@ -56,6 +56,7 @@ def test_session_render_retries_failed_notes(tmp_path: Path) -> None:
     raw["calculators"] = ["qsofa"]
     raw["cohort"]["n_per_calculator"] = 4
     raw["renders"] = {"t": {"provider": "sonnet_session", "locales": ["en-US"], "max_attempts": 2}}
+    raw["agent"] = None
     raw["validation"]["judge_provider"] = None
     raw["simulator"] = {"unavailable_rate": {}}
     cfg_path = tmp_path / "cfg.yaml"

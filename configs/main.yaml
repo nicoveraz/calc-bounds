@@ -56,7 +56,16 @@ extraction:               # what the policies use
   kind: oracle            # or: llm, with extractor + render below
   # extractor: haiku
   # render: sonnet
+  calibration: isotonic
   dev_fraction: 0.3
+
+agent:                    # S2: end-to-end LLM agent (Opus via headless Claude Code)
+  provider: opus_cli
+  render: sonnet
+  max_turns: 12
+  max_workers: 3
+
+echo_threshold: 0.9       # S4 confidence echo (calibrated confidence)
 
 simulator:
   unavailable_rate:

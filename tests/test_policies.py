@@ -203,3 +203,71 @@ def test_s4_echo_catches_low_confidence_wrong_value() -> None:
     s4 = _s4().run(case, "", calc, ext, SimulatedClinician(truth))
     assert [(s.question, s.reason) for s in s4.steps] == [("resp_rate", "confidence_echo")]
     assert s4.final_category == "positive"
+
+
+def test_s2_agent_loop_with_scripted_llm(tmp_path) -> None:
+    import json
+
+    from calc_bounds.llm import LLM, DiskCache, LLMResponse, Usage
+    from calc_bounds.policies.llm_agent import LLMAgentPolicy
+
+    calc = REGISTRY["qsofa"]
+    truth = {"resp_rate": 24.0, "altered_mentation": True, "sbp": 120.0}
+    case = PatientCase(
+        case_id="q",
+        seed=0,
+        calculator="qsofa",
+        truth=truth,
+        documented={
+            "resp_rate": DocumentedState.POSITIVE,
+            "altered_mentation": DocumentedState.NOT_DOCUMENTED,
+            "sbp": DocumentedState.POSITIVE,
+        },
+        true_score=2,
+        true_category="positive",
+        determined_from_note=False,
+    )
+
+    def act(**kw):
+        base = {
+            "action": None,
+            "parameter": None,
+            "question": None,
+            "values": None,
+            "category": None,
+        }
+        return json.dumps(base | kw)
+
+    script = [
+        "not json",
+        act(action="ask", parameter="altered_mentation", question="Is the patient confused?"),
+        act(action="calculate", values={"resp_rate": 24, "altered_mentation": True}),
+        act(action="calculate", values={"resp_rate": 24, "altered_mentation": True, "sbp": 120}),
+        act(action="answer", category="positive"),
+    ]
+
+    class Scripted:
+        def complete(self, request):
+            turn = sum(m["role"] == "assistant" for m in request.messages)
+            return LLMResponse(text=script[turn], usage=Usage(input_tokens=10, output_tokens=5))
+
+    llm = LLM({"fake": Scripted()}, DiskCache(tmp_path), max_cost_usd=0)
+    agent = LLMAgentPolicy(llm, "fake", {}, "m", "fake")
+    t = agent.run(case, "RR 24. BP 120/70.", calc, None, SimulatedClinician(truth))
+    assert t.final_category == "positive" and not t.committed_while_undetermined
+    assert [(s.question, s.reason, s.answer.value) for s in t.steps] == [
+        ("altered_mentation", "llm_choice", True)
+    ]
+    assert t.steps[0].relevant == ["altered_mentation"]
+    assert t.usage.input_tokens == 50
+
+    # Answering before asking: committed while undetermined (mentation decides the category).
+    script[:] = [act(action="answer", category="negative")]
+    t = LLMAgentPolicy(
+        LLM({"fake": Scripted()}, DiskCache(tmp_path / "b"), max_cost_usd=0),
+        "fake",
+        {},
+        "m",
+        "fake",
+    ).run(case, "note", calc, None, SimulatedClinician(truth))
+    assert t.final_category == "negative" and t.committed_while_undetermined and t.n_questions == 0

@@ -86,9 +86,22 @@ def make_policies(cfg: RunConfig) -> dict[str, Policy]:
     from calc_bounds.policies.voi_echo import VoiEchoPolicy
 
     priors = {c: _priors(calc, cfg.cohort) for c, calc in calculators(cfg).items()}
-    return dict(POLICIES) | {
+    policies: dict[str, Policy] = dict(POLICIES) | {
         "s4_bounds_voi_echo": VoiEchoPolicy(priors, load_calibrator(cfg), cfg.echo_threshold)
     }
+    if cfg.agent is not None:
+        from calc_bounds.policies.llm_agent import LLMAgentPolicy
+
+        pcfg = cfg.providers[cfg.agent.provider]
+        policies["s2_llm_agent"] = LLMAgentPolicy(
+            make_llm(cfg),
+            cfg.agent.provider,
+            pcfg.request_params(),
+            pcfg.model,
+            pcfg.kind,
+            max_turns=cfg.agent.max_turns,
+        )
+    return policies
 
 
 def extraction_label(cfg: RunConfig) -> str:
@@ -102,6 +115,10 @@ def traces_path(cfg: RunConfig) -> Path:
 
 
 def run_policies(cfg: RunConfig) -> Path:
+    """Run the configured policies. Code policies run per case; the S2 agent runs in parallel
+    across cases (its turns within a case are sequential LLM calls)."""
+    from concurrent.futures import ThreadPoolExecutor
+
     out = run_dir(cfg)
     cases = read_jsonl(out / "cohort.jsonl", PatientCase)
     calcs = calculators(cfg)
@@ -112,18 +129,35 @@ def run_policies(cfg: RunConfig) -> Path:
     missing = [p for p in cfg.policies if p not in policies]
     if missing:
         raise NotImplementedError(f"policies not implemented yet: {missing}")
-    traces: list[Trace] = []
-    for case in cases:
+    notes: dict[str, str] = {}
+    if "s2_llm_agent" in cfg.policies:
+        assert cfg.agent is not None, "s2_llm_agent needs an `agent` config"
+        notes = {
+            n.case_id: n.text for n in read_jsonl(notes_path(cfg, cfg.agent.render), RenderedNote)
+        }
+        cases = [c for c in cases if c.case_id in notes]
+
+    def clinician_for(case: PatientCase) -> SimulatedClinician:
         calc = calcs[case.calculator]
         unavailable = draw_unavailable(
             [p.id for p in calc.parameters],
             cfg.simulator.unavailable_rate,
             stable_seed(cfg.seed, case.case_id, "simulator"),
         )
-        for pid in cfg.policies:
-            clinician = SimulatedClinician(case.truth, unavailable)
-            note = ""  # M2: oracle extraction needs no note; rendered notes arrive in M3.
-            traces.append(policies[pid].run(case, note, calc, extractor, clinician))
+        return SimulatedClinician(case.truth, unavailable)
+
+    def run_one(pid: str, case: PatientCase) -> Trace:
+        note = notes.get(case.case_id, "")  # code policies read the (precomputed) extraction
+        return policies[pid].run(case, note, calcs[case.calculator], extractor, clinician_for(case))
+
+    traces: list[Trace] = []
+    for pid in cfg.policies:
+        if pid == "s2_llm_agent":
+            assert cfg.agent is not None
+            with ThreadPoolExecutor(max_workers=cfg.agent.max_workers) as pool:
+                traces += list(pool.map(lambda c: run_one("s2_llm_agent", c), cases))
+        else:
+            traces += [run_one(pid, c) for c in cases]
     write_jsonl(traces_path(cfg), traces)
     return traces_path(cfg)
 

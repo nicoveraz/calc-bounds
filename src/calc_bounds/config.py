@@ -106,6 +106,16 @@ class ExtractionConfig(Strict):
     """Share of cases (per calculator) used only for fitting calibration."""
 
 
+class AgentConfig(Strict):
+    """S2 end-to-end LLM agent."""
+
+    provider: str
+    render: str
+    """Render set whose notes the agent reads."""
+    max_turns: int = 12
+    max_workers: int = Field(default=3, ge=1)
+
+
 class SimulatorConfig(Strict):
     unavailable_rate: dict[str, float] = {}
     """Per-param probability the clinician answers 'not available'."""
@@ -128,6 +138,7 @@ class RunConfig(Strict):
     extractors: dict[str, ExtractorConfig] = {}
     extraction: ExtractionConfig
     simulator: SimulatorConfig = SimulatorConfig()
+    agent: AgentConfig | None = None
     echo_threshold: float = Field(default=0.9, gt=0.0, le=1.0)
     """S4: confirm extracted decision-critical values whose calibrated confidence is below."""
     policies: list[
@@ -150,6 +161,11 @@ class RunConfig(Strict):
                 raise ValueError("extraction.extractor must name an entry in `extractors`")
             if self.extraction.render not in self.renders:
                 raise ValueError("extraction.render must name an entry in `renders`")
+        if self.agent is not None:
+            if self.agent.provider not in self.providers:
+                raise ValueError(f"agent: unknown provider {self.agent.provider!r}")
+            if self.agent.render not in self.renders:
+                raise ValueError(f"agent: unknown render {self.agent.render!r}")
         judge = self.validation.judge_provider
         if judge is not None and judge not in self.providers:
             raise ValueError(f"validation.judge_provider: unknown provider {judge!r}")
