@@ -737,20 +737,35 @@ def renderer_bias_report(
 
 # --- M6: cross-source report --------------------------------------------------------------------
 
-REPORT_SOURCES = ["oracle", "haiku__sonnet", "qwen_local__sonnet"]
 ECHO_THRESHOLDS = [0.5, 0.8, 0.9, 0.95, 0.99, 0.999]
 MISSINGNESS_LEVELS = [0.1, 0.3, 0.5]
 
 
 def _cfg_for(cfg: RunConfig, label: str) -> RunConfig:
-    if label == "oracle":
+    """Config for a trace label: `oracle[__<clinician>]` or
+    `<extractor>__<render>[__<clinician>]`."""
+    parts = label.split("__")
+    if parts[0] == "oracle":
         x = cfg.extraction.model_copy(update={"kind": "oracle", "extractor": None, "render": None})
+        clinician = parts[1] if len(parts) > 1 else None
     else:
-        extractor, render = label.split("__")
         x = cfg.extraction.model_copy(
-            update={"kind": "llm", "extractor": extractor, "render": render}
+            update={"kind": "llm", "extractor": parts[0], "render": parts[1]}
         )
-    return RunConfig.model_validate(cfg.model_dump() | {"extraction": x.model_dump()})
+        clinician = parts[2] if len(parts) > 2 else None
+    update: dict[str, object] = {"extraction": x.model_dump()}
+    if clinician:
+        update["simulator"] = (
+            cfg.clinicians[clinician].model_copy(update={"name": clinician}).model_dump()
+        )
+    return RunConfig.model_validate(cfg.model_dump() | update)
+
+
+def report_sources(cfg: RunConfig) -> list[str]:
+    """Every condition with traces: extraction source x note set x clinician."""
+    order = {"oracle": 0}
+    labels = sorted(p.stem for p in (run_dir(cfg) / "traces").glob("*.jsonl"))
+    return sorted(labels, key=lambda lab: (order.get(lab.split("__")[0], 1), lab))
 
 
 def report(cfg: RunConfig, missingness_n: int = 200) -> Path:
@@ -775,9 +790,7 @@ def report(cfg: RunConfig, missingness_n: int = 200) -> Path:
     pd.Series(shares, name="natural_undetermined_share").to_csv(out / "natural_share.csv")
 
     summaries, comps, attrs, natural, sweep, claims = [], [], [], [], [], {}
-    for label in REPORT_SOURCES:
-        if not traces_path(_cfg_for(cfg, label)).exists():
-            continue
+    for label in report_sources(cfg):
         c = _cfg_for(cfg, label)
         ev = evaluate(c)
         s = pd.read_csv(ev / "summary.csv")
@@ -803,7 +816,7 @@ def report(cfg: RunConfig, missingness_n: int = 200) -> Path:
         )
         nat.insert(0, "extraction", label)
         natural.append(nat)
-        if label != "oracle":
+        if not label.startswith("oracle") and label.count("__") == 1 and label.endswith("__sonnet"):
             claims[label.split("__")[0]] = pd.read_csv(ev / "extraction_claims.csv").query(
                 "policy == 's3_bounds'"
             )
