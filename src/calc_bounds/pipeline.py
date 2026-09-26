@@ -575,7 +575,10 @@ def calibrate(cfg: RunConfig, extractor: str, render: str) -> Path:
 
 # --- M4: MedCalc-Bench anchor -------------------------------------------------------------------
 
-ANCHOR_PATH = Path("data/raw/medcalc/test_data.csv")
+ANCHOR_SPLITS = {
+    "test": Path("data/raw/medcalc/test_data.csv"),
+    "train": Path("data/raw/medcalc/train_data.csv"),
+}
 
 
 def _point_score(calc: Calculator, known: dict) -> float | None:
@@ -583,8 +586,12 @@ def _point_score(calc: Calculator, known: dict) -> float | None:
     return b.lo if b.lo == b.hi else None
 
 
-def anchor_run(cfg: RunConfig, extractor: str, path: Path = ANCHOR_PATH) -> Path:
-    """Extraction + code on MedCalc-Bench notes; see calc_bounds.anchor and docs/ANCHOR.md."""
+def anchor_run(
+    cfg: RunConfig, extractor: str, split: str = "test", per_calc: int | None = None
+) -> Path:
+    """Extraction + code on MedCalc-Bench notes; see calc_bounds.anchor and docs/ANCHOR.md.
+    `split=train` excludes notes that also appear in the test split; `per_calc` caps each
+    calculator with a seeded sample."""
     from concurrent.futures import ThreadPoolExecutor
 
     import pandas as pd
@@ -595,7 +602,17 @@ def anchor_run(cfg: RunConfig, extractor: str, path: Path = ANCHOR_PATH) -> Path
     calcs = {c: get_calculator(c, cfg.calculator_options.get(c)) for c in REGISTRY}
     xcfg = cfg.extractors[extractor]
     llm = make_llm(cfg)
-    cases = load_anchor(path)
+    cases = load_anchor(ANCHOR_SPLITS[split])
+    if split != "test":
+        test_notes = {a.note for a in load_anchor(ANCHOR_SPLITS["test"])}
+        cases = [a for a in cases if a.note not in test_notes]
+    if per_calc is not None:
+        kept = []
+        for calc_id in sorted({a.calculator for a in cases}):
+            pool = [a for a in cases if a.calculator == calc_id]
+            rng = np.random.default_rng(stable_seed(cfg.seed, "anchor", split, calc_id))
+            kept += [pool[i] for i in sorted(rng.permutation(len(pool))[:per_calc])]
+        cases = kept
 
     def work(a: AnchorCase) -> dict:
         calc = calcs[a.calculator]
@@ -645,7 +662,8 @@ def anchor_run(cfg: RunConfig, extractor: str, path: Path = ANCHOR_PATH) -> Path
 
     with ThreadPoolExecutor(max_workers=xcfg.max_workers) as pool:
         rows = list(pool.map(work, cases))
-    out = run_dir(cfg) / "anchor" / f"{extractor}.csv"
+    name = extractor if split == "test" else f"{extractor}__{split}"
+    out = run_dir(cfg) / "anchor" / f"{name}.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(rows)
     df.to_csv(out, index=False)

@@ -150,7 +150,12 @@ def bias(
 
 
 @app.command()
-def anchor(config: Path, extractor: str = typer.Option(..., help="Key in `extractors`.")) -> None:
+def anchor(
+    config: Path,
+    extractor: str = typer.Option(..., help="Key in `extractors`."),
+    split: str = typer.Option("test", help="MedCalc-Bench split: test or train."),
+    per_calc: int | None = typer.Option(None, help="Seeded cap per calculator."),
+) -> None:
     """Run the MedCalc-Bench anchor (extraction + code) with one extractor."""
-    out = pipeline.anchor_run(load_config(config), extractor)
+    out = pipeline.anchor_run(load_config(config), extractor, split, per_calc)
     typer.echo(out.with_suffix(".summary.csv").read_text())
