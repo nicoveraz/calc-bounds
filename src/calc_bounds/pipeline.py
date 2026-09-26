@@ -76,7 +76,10 @@ def load_calibrator(cfg: RunConfig) -> Calibrator:
 
     if cfg.extraction.kind == "oracle" or cfg.extraction.calibration == "none":
         return Calibrator(method="none")
-    path = run_dir(cfg) / "calibration" / f"{extraction_label(cfg)}.json"
+    # Calibration belongs to the extraction, not to the clinician condition.
+    path = (
+        run_dir(cfg) / "calibration" / (f"{cfg.extraction.extractor}__{cfg.extraction.render}.json")
+    )
     report = json.loads(path.read_text())
     return Calibrator.model_validate(report[cfg.extraction.calibration]["calibrator"])
 
