@@ -271,3 +271,50 @@ def test_s2_agent_loop_with_scripted_llm(tmp_path) -> None:
         "fake",
     ).run(case, "note", calc, None, SimulatedClinician(truth))
     assert t.final_category == "negative" and t.committed_while_undetermined and t.n_questions == 0
+
+
+def test_noisy_clinician_is_deterministic_and_honest_when_vague() -> None:
+    from calc_bounds.simulator import ClinicianNoise
+
+    calc = REGISTRY["curb65"]
+    specs = {p.id: p for p in calc.parameters}
+    truth = {
+        "confusion": True,
+        "urea": 9.2,
+        "resp_rate": 28.0,
+        "sbp": 110.0,
+        "dbp": 70.0,
+        "age": 70.0,
+    }
+    noise = ClinicianNoise(dont_know_rate=0.2, wrong_rate=0.2, vague_rate=0.4)
+    kinds: dict[str, int] = {}
+    for seed in range(300):
+        c1 = SimulatedClinician(truth, specs=specs, noise=noise, seed=seed)
+        c2 = SimulatedClinician(truth, specs=specs, noise=noise, seed=seed)
+        order = [p.id for p in calc.parameters]
+        a = {x.param: x for x in (c1.ask(p) for p in order)}
+        b = {x.param: x for x in (c2.ask(p) for p in reversed(order))}
+        assert a == b  # independent of question order
+        for pid, ans in a.items():
+            kinds[ans.noise] = kinds.get(ans.noise, 0) + 1
+            if ans.status == "range":
+                assert ans.lo <= truth[pid] <= ans.hi  # vague, but contains the truth
+            if ans.noise == "wrong":
+                assert ans.value != truth[pid]
+            if ans.noise == "none" and ans.status == "answered":
+                assert ans.value == truth[pid]
+    assert set(kinds) == {"none", "wrong", "vague", "dont_know"}
+
+
+def test_policies_accept_range_answers(cohort: list[PatientCase]) -> None:
+    from calc_bounds.simulator import ClinicianNoise
+
+    noise = ClinicianNoise(vague_rate=1.0, vague_width=0.1)
+    for case in cohort[:60]:
+        calc = REGISTRY[case.calculator]
+        clin = SimulatedClinician(
+            case.truth, specs={p.id: p for p in calc.parameters}, noise=noise, seed=1
+        )
+        t = POLICIES["s3_bounds"].run(case, "", calc, OracleExtractor({case.case_id: case}), clin)
+        # A vague answer can leave the category open (abstain) but never makes it wrong.
+        assert t.final_category in (None, case.true_category)

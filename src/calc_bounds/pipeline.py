@@ -105,9 +105,28 @@ def make_policies(cfg: RunConfig) -> dict[str, Policy]:
 
 
 def extraction_label(cfg: RunConfig) -> str:
-    if cfg.extraction.kind == "oracle":
-        return "oracle"
-    return f"{cfg.extraction.extractor}__{cfg.extraction.render}"
+    base = (
+        "oracle"
+        if cfg.extraction.kind == "oracle"
+        else f"{cfg.extraction.extractor}__{cfg.extraction.render}"
+    )
+    # Non-ideal clinicians get their own traces/eval (the ideal results keep their names).
+    return base if cfg.simulator.name == "ideal" else f"{base}__{cfg.simulator.name}"
+
+
+def make_clinician(cfg: RunConfig, case: PatientCase, calc: Calculator) -> SimulatedClinician:
+    unavailable = draw_unavailable(
+        [p.id for p in calc.parameters],
+        cfg.simulator.unavailable_rate,
+        stable_seed(cfg.seed, case.case_id, "simulator"),
+    )
+    return SimulatedClinician(
+        case.truth,
+        unavailable,
+        specs={p.id: p for p in calc.parameters},
+        noise=cfg.simulator.noise,
+        seed=stable_seed(cfg.seed, case.case_id, "clinician-noise"),
+    )
 
 
 def traces_path(cfg: RunConfig) -> Path:
@@ -132,19 +151,13 @@ def run_policies(cfg: RunConfig) -> Path:
     notes: dict[str, str] = {}
     if "s2_llm_agent" in cfg.policies:
         assert cfg.agent is not None, "s2_llm_agent needs an `agent` config"
-        notes = {
-            n.case_id: n.text for n in read_jsonl(notes_path(cfg, cfg.agent.render), RenderedNote)
-        }
+        # The agent reads the same notes the extraction came from (e.g. the messy set).
+        agent_render = cfg.extraction.render or cfg.agent.render
+        notes = {n.case_id: n.text for n in read_jsonl(notes_path(cfg, agent_render), RenderedNote)}
         cases = [c for c in cases if c.case_id in notes]
 
     def clinician_for(case: PatientCase) -> SimulatedClinician:
-        calc = calcs[case.calculator]
-        unavailable = draw_unavailable(
-            [p.id for p in calc.parameters],
-            cfg.simulator.unavailable_rate,
-            stable_seed(cfg.seed, case.case_id, "simulator"),
-        )
-        return SimulatedClinician(case.truth, unavailable)
+        return make_clinician(cfg, case, calcs[case.calculator])
 
     def run_one(pid: str, case: PatientCase) -> Trace:
         note = notes.get(case.case_id, "")  # code policies read the (precomputed) extraction
@@ -254,9 +267,14 @@ def _finish_pending(path: Path, pending: list[PendingItem]) -> None:
 
 
 def _render_request(
-    pcfg: ProviderConfig, case: PatientCase, calc: Calculator, locale: str, attempt: int
+    pcfg: ProviderConfig,
+    case: PatientCase,
+    calc: Calculator,
+    locale: str,
+    attempt: int,
+    style: str = "standard",
 ) -> LLMRequest:
-    req = _request(pcfg, RENDER_SYSTEM, render_prompt(case, calc, locale))
+    req = _request(pcfg, RENDER_SYSTEM, render_prompt(case, calc, locale, style))
     if attempt > 1:  # attempt 1 carries no marker, so its cache key is the plain prompt's
         req.params["attempt"] = attempt
     return req
@@ -316,7 +334,7 @@ def render_notes(cfg: RunConfig, render: str) -> dict[str, int]:
     ) -> tuple[RenderedNote | None, PendingItem | None]:
         calc = calcs[case.calculator]
         for attempt in range(1, spec.max_attempts + 1):
-            req = _render_request(pcfg, case, calc, locale, attempt)
+            req = _render_request(pcfg, case, calc, locale, attempt, spec.style)
             try:
                 resp = llm.complete(req, provider=spec.provider, stage=f"render:{render}")
             except PendingResponseError as e:
@@ -874,17 +892,10 @@ def _run_code_policies(cfg: RunConfig, cases: list[PatientCase]) -> list[Trace]:
     traces = []
     for case in cases:
         calc = calcs[case.calculator]
-        unavailable = draw_unavailable(
-            [p.id for p in calc.parameters],
-            cfg.simulator.unavailable_rate,
-            stable_seed(cfg.seed, case.case_id, "simulator"),
-        )
         for pid in cfg.policies:
             if pid == "s2_llm_agent":
                 continue
             traces.append(
-                policies[pid].run(
-                    case, "", calc, extractor, SimulatedClinician(case.truth, unavailable)
-                )
+                policies[pid].run(case, "", calc, extractor, make_clinician(cfg, case, calc))
             )
     return traces

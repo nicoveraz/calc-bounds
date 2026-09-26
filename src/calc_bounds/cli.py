@@ -64,9 +64,14 @@ def export_review(config: Path, name: str = typer.Option(..., help="Render set."
     typer.echo(f"wrote {pipeline.export_review(load_config(config), name)}")
 
 
-def _load(config: Path, extractor: str | None, render: str | None) -> RunConfig:
-    """Load a config, optionally overriding which LLM extraction the policies use."""
+def _load(
+    config: Path, extractor: str | None, render: str | None, clinician: str | None = None
+) -> RunConfig:
+    """Load a config, optionally overriding the LLM extraction and the clinician condition."""
     cfg = load_config(config)
+    if clinician:
+        sim = cfg.clinicians[clinician].model_copy(update={"name": clinician})
+        cfg = RunConfig.model_validate(cfg.model_dump() | {"simulator": sim.model_dump()})
     if extractor or render:
         x = cfg.extraction.model_copy(
             update={"kind": "llm", "extractor": extractor, "render": render}
@@ -77,14 +82,18 @@ def _load(config: Path, extractor: str | None, render: str | None) -> RunConfig:
 
 EXTRACTOR_OPT = typer.Option(None, help="Use this LLM extractor's results (key in `extractors`).")
 RENDER_OPT = typer.Option(None, help="Render set the extractor ran on.")
+CLINICIAN_OPT = typer.Option(None, help="Named clinician condition (key in `clinicians`).")
 
 
 @app.command()
 def run(
-    config: Path, extractor: str | None = EXTRACTOR_OPT, render: str | None = RENDER_OPT
+    config: Path,
+    extractor: str | None = EXTRACTOR_OPT,
+    render: str | None = RENDER_OPT,
+    clinician: str | None = CLINICIAN_OPT,
 ) -> None:
     """Run the configured policies over the cohort and write traces."""
-    typer.echo(f"wrote {pipeline.run_policies(_load(config, extractor, render))}")
+    typer.echo(f"wrote {pipeline.run_policies(_load(config, extractor, render, clinician))}")
 
 
 @app.command()
@@ -110,10 +119,13 @@ def calibrate(
 
 @app.command(name="eval")
 def evaluate(
-    config: Path, extractor: str | None = EXTRACTOR_OPT, render: str | None = RENDER_OPT
+    config: Path,
+    extractor: str | None = EXTRACTOR_OPT,
+    render: str | None = RENDER_OPT,
+    clinician: str | None = CLINICIAN_OPT,
 ) -> None:
     """Compute metrics and plots from traces."""
-    out = pipeline.evaluate(_load(config, extractor, render))
+    out = pipeline.evaluate(_load(config, extractor, render, clinician))
     typer.echo((out / "summary.csv").read_text())
     typer.echo(f"outputs in {out}")
 

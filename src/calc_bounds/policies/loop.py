@@ -6,6 +6,7 @@ from typing import Literal
 from calc_bounds.bounds import (
     Constraint,
     Exact,
+    Interval,
     decision_relevant_missing,
     from_extractions,
     score_bounds,
@@ -57,8 +58,10 @@ def run_loop(
         )
         if answer.status == "answered":
             assert answer.value is not None
-            known[param] = Exact(value=answer.value)
-            tri_known[param] = Exact(value=answer.value)
+            known[param] = tri_known[param] = Exact(value=answer.value)
+        elif answer.status == "range":
+            assert answer.lo is not None and answer.hi is not None
+            known[param] = tri_known[param] = Interval(lo=answer.lo, hi=answer.hi)
     determined = len(bounds.categories) == 1
     truly_determined = len(score_bounds(calc, tri_known).categories) == 1
     exact = {p: c.value for p, c in known.items() if isinstance(c, Exact)}

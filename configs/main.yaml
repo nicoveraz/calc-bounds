@@ -45,6 +45,13 @@ renders:
     locales: [es-CL]
     judge_provider: opus_cli
     max_workers: 3
+  messy:                  # harder notes: same cases and fact sheets, messy ED style
+    provider: sonnet_cli
+    locales: [en-US]
+    style: messy
+    judge_provider: opus_cli
+    subset_per_calculator: 100
+    max_workers: 3
   local:                  # renderer-family bias subset: same cases rendered by the local model
     provider: qwen_local
     judge_provider: opus_cli
@@ -75,6 +82,16 @@ agent:                    # S2: end-to-end LLM agent (Opus via headless Claude C
   render: sonnet
   max_turns: 12
   max_workers: 3
+
+clinicians:               # harder conditions, selected with --clinician <name>
+  noisy:
+    unavailable_rate:
+      heart_troponin: 0.1
+    noise:
+      dont_know_rate: 0.10  # "I don't know" to any question
+      wrong_rate: 0.05      # misremembered: flipped / off-by-one level / numeric off 10-25%
+      vague_rate: 0.25      # numeric answered as a +/-10% range (contains the truth)
+      vague_width: 0.10
 
 echo_threshold: 0.9       # S4 confidence echo (calibrated confidence)
 

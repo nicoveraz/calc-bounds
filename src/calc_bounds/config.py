@@ -7,6 +7,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from calc_bounds.distributions import Distribution
+from calc_bounds.simulator import ClinicianNoise
 
 
 class Strict(BaseModel):
@@ -72,6 +73,8 @@ class RenderConfig(Strict):
     locales: list[Literal["en-US", "es-CL"]]
     subset_per_calculator: int | None = None
     """Render only a seeded, coverage-stratified subset of this many cases per calculator."""
+    style: str = "standard"
+    """Style guide variant (render/styles/<locale>.<style>.md), e.g. "messy"."""
     judge_provider: str | None = None
     """Override `validation.judge_provider` for this render set."""
     max_attempts: int = Field(default=3, ge=1)
@@ -119,8 +122,11 @@ class AgentConfig(Strict):
 
 
 class SimulatorConfig(Strict):
+    name: str = "ideal"
+    """Condition label; traces for non-ideal clinicians get their own files."""
     unavailable_rate: dict[str, float] = {}
     """Per-param probability the clinician answers 'not available'."""
+    noise: ClinicianNoise | None = None
 
 
 class RunConfig(Strict):
@@ -140,6 +146,8 @@ class RunConfig(Strict):
     extractors: dict[str, ExtractorConfig] = {}
     extraction: ExtractionConfig
     simulator: SimulatorConfig = SimulatorConfig()
+    clinicians: dict[str, SimulatorConfig] = {}
+    """Named alternative clinician conditions, selected with `--clinician <name>`."""
     agent: AgentConfig | None = None
     echo_threshold: float = Field(default=0.9, gt=0.0, le=1.0)
     """S4: confirm extracted decision-critical values whose calibrated confidence is below."""

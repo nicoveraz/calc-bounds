@@ -20,11 +20,12 @@ exactly as instructed, and items marked DO NOT MENTION must be completely absent
 inferable. Output only the note text."""
 
 
-def style_guide(locale: str) -> str:
-    return resources.files("calc_bounds.render.styles").joinpath(f"{locale}.md").read_text()
+def style_guide(locale: str, style: str = "standard") -> str:
+    name = f"{locale}.md" if style == "standard" else f"{locale}.{style}.md"
+    return resources.files("calc_bounds.render.styles").joinpath(name).read_text()
 
 
-def render_prompt(case: PatientCase, calc: Calculator, locale: str) -> str:
+def render_prompt(case: PatientCase, calc: Calculator, locale: str, style: str = "standard") -> str:
     facts = build_facts(case, calc, locale)
     lines = "\n".join(f"- [{f.param}] {f.instruction}" for f in facts)
     return f"""\
@@ -33,7 +34,7 @@ Write one clinical note in {LOCALE_NAMES[locale]} ({locale}).
 Setting: {vocab.SETTINGS[calc.id]}
 
 Style guide:
-{style_guide(locale).strip()}
+{style_guide(locale, style).strip()}
 
 Fact sheet (each item is mandatory):
 {lines}
