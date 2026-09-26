@@ -102,6 +102,9 @@ class LLM:
         except PendingResponseError as e:
             e.key = key
             raise
+        if response.stop_reason == "error":  # never cache failures
+            self._log(key, request, response, stage)
+            return response
         self.cache.put(key, request, response)
         with self._lock:
             self.spent_usd += response.usage.cost_usd

@@ -198,11 +198,15 @@ class ClaudeCLIClient:
                 time.sleep(10 * 2**attempt)
                 continue
             if out.get("is_error"):
-                last_error = str(out.get("result") or out.get("api_error_status"))
+                last_error = json.dumps(
+                    {k: out.get(k) for k in ("subtype", "terminal_reason", "api_error_status")}
+                    | {"result": str(out.get("result"))[:300]}
+                )
                 if "limit" in last_error.lower() or out.get("api_error_status") in (429, 529):
                     time.sleep(60 * 2**attempt)  # subscription rate limit: back off
-                    continue
-                raise RuntimeError(f"claude -p error: {last_error}")
+                else:
+                    time.sleep(5)
+                continue
             mu = next(iter((out.get("modelUsage") or {}).values()), {})
             usage = Usage(
                 input_tokens=int(mu.get("inputTokens", 0))
@@ -214,7 +218,14 @@ class ClaudeCLIClient:
             structured = out.get("structured_output")
             text = json.dumps(structured) if structured is not None else str(out.get("result", ""))
             return LLMResponse(text=text, usage=usage, stop_reason=out.get("stop_reason"), raw=out)
-        raise RuntimeError(f"claude -p failed after {self.MAX_RETRIES} attempts: {last_error}")
+        # A persistent failure is returned (not raised) so one bad input cannot stop a run.
+        # LLM.complete does not cache error responses, so a rerun tries again.
+        return LLMResponse(
+            text="",
+            usage=Usage(),
+            stop_reason="error",
+            raw={"error": f"claude -p failed after {self.MAX_RETRIES} attempts: {last_error}"},
+        )
 
 
 class OllamaClient:

@@ -96,3 +96,19 @@ def test_provider_config_validation() -> None:
         ProviderConfig(kind="openai_compat", model="x")
     p = ProviderConfig(kind="anthropic", model="x", effort="low", max_tokens=100)
     assert p.request_params() == {"max_tokens": 100, "effort": "low"}
+
+
+def test_error_responses_are_not_cached(tmp_path: Path) -> None:
+    class Flaky:
+        calls = 0
+
+        def complete(self, request: LLMRequest) -> LLMResponse:
+            Flaky.calls += 1
+            if Flaky.calls == 1:
+                return LLMResponse(text="", usage=Usage(), stop_reason="error")
+            return LLMResponse(text="ok", usage=Usage())
+
+    llm = LLM({"f": Flaky()}, DiskCache(tmp_path), max_cost_usd=0)
+    assert llm.complete(req(), provider="f").stop_reason == "error"
+    assert llm.complete(req(), provider="f").text == "ok"  # retried, not served from cache
+    assert llm.complete(req(), provider="f").usage.cached
