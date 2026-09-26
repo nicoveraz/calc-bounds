@@ -95,3 +95,40 @@ def test_logprob_confidence() -> None:
     assert field_confidence(text, toks, "b") == pytest.approx(1.0)
     assert field_confidence(text, toks, "zzz") is None
     assert field_confidence(text + " ", toks, "a") is None  # tokens must reproduce the text
+
+
+def test_claim_correct_level_zero_equivalence() -> None:
+    from calc_bounds.cohort import PatientCase
+    from calc_bounds.eval.metrics import claim_correct
+    from calc_bounds.types import DocumentedState as D
+    from calc_bounds.types import EvidenceSpan
+
+    heart = REGISTRY["heart"]
+    truth = {p.id: False for p in heart.parameters} | {
+        "heart_history": 1,
+        "heart_ecg": 0,
+        "age": 50.0,
+        "heart_troponin": 2,
+    }
+    documented = dict.fromkeys(truth, D.NOT_DOCUMENTED) | {
+        "heart_ecg": D.NEGATIVE,
+        "heart_troponin": D.POSITIVE,
+    }
+    case = PatientCase(
+        case_id="h",
+        seed=0,
+        calculator="heart",
+        truth=truth,
+        documented=documented,
+        true_score=0,
+        true_category="low",
+        determined_from_note=False,
+    )
+    ev = EvidenceSpan(start=0, end=1, text="x")
+    kw = {"confidence": 1.0, "confidence_source": "self_reported", "evidence": ev}
+    assert claim_correct(case, "heart_ecg", Present(value=0, **kw))
+    assert claim_correct(case, "heart_ecg", Absent(**kw))
+    assert not claim_correct(case, "heart_ecg", Present(value=1, **kw))
+    assert claim_correct(case, "heart_troponin", Present(value=2, **kw))
+    assert not claim_correct(case, "heart_troponin", Absent(**kw))  # level 2 is not normal
+    assert not claim_correct(case, "heart_history", Present(value=1, **kw))  # not documented

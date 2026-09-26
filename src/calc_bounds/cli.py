@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 
 from calc_bounds import pipeline
-from calc_bounds.config import load_config
+from calc_bounds.config import RunConfig, load_config
 
 app = typer.Typer(no_args_is_help=True, help="calc-bounds experiment pipeline.")
 
@@ -64,10 +64,27 @@ def export_review(config: Path, name: str = typer.Option(..., help="Render set."
     typer.echo(f"wrote {pipeline.export_review(load_config(config), name)}")
 
 
+def _load(config: Path, extractor: str | None, render: str | None) -> RunConfig:
+    """Load a config, optionally overriding which LLM extraction the policies use."""
+    cfg = load_config(config)
+    if extractor or render:
+        x = cfg.extraction.model_copy(
+            update={"kind": "llm", "extractor": extractor, "render": render}
+        )
+        cfg = RunConfig.model_validate(cfg.model_dump() | {"extraction": x.model_dump()})
+    return cfg
+
+
+EXTRACTOR_OPT = typer.Option(None, help="Use this LLM extractor's results (key in `extractors`).")
+RENDER_OPT = typer.Option(None, help="Render set the extractor ran on.")
+
+
 @app.command()
-def run(config: Path) -> None:
+def run(
+    config: Path, extractor: str | None = EXTRACTOR_OPT, render: str | None = RENDER_OPT
+) -> None:
     """Run the configured policies over the cohort and write traces."""
-    typer.echo(f"wrote {pipeline.run_policies(load_config(config))}")
+    typer.echo(f"wrote {pipeline.run_policies(_load(config, extractor, render))}")
 
 
 @app.command()
@@ -92,9 +109,11 @@ def calibrate(
 
 
 @app.command(name="eval")
-def evaluate(config: Path) -> None:
+def evaluate(
+    config: Path, extractor: str | None = EXTRACTOR_OPT, render: str | None = RENDER_OPT
+) -> None:
     """Compute metrics and plots from traces."""
-    out = pipeline.evaluate(load_config(config))
+    out = pipeline.evaluate(_load(config, extractor, render))
     typer.echo((out / "summary.csv").read_text())
     typer.echo(f"outputs in {out}")
 

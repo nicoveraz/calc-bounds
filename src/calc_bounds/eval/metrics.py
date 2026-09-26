@@ -8,9 +8,10 @@ import math
 
 import pandas as pd
 
+from calc_bounds.calculators import REGISTRY
 from calc_bounds.cohort import PatientCase
 from calc_bounds.policies import Trace
-from calc_bounds.types import Absent, DocumentedState, Extraction, Present, Unknown
+from calc_bounds.types import Absent, DocumentedState, Extraction, OrdinalDomain, Present, Unknown
 from calc_bounds.units import UnitError, to_canonical
 
 
@@ -79,7 +80,19 @@ def claim_correct(case: PatientCase, pid: str, e: Extraction) -> bool:
     relative tolerance 1e-3); Absent: documented negative; Unknown: not documented.
     """
     state = case.documented[pid]
+    calc_params = {p.id: p for c in REGISTRY.values() for p in c.parameters}
+    level_zero_equivalent = (
+        isinstance(calc_params[pid].domain, OrdinalDomain)
+        and calc_params[pid].negatable
+        and case.truth[pid] == 0
+        and state != DocumentedState.NOT_DOCUMENTED
+    )
     match e:
+        case Present(value=v) if level_zero_equivalent:
+            # "ECG normal" as level 0 is the same claim as "ECG normal" as a negation.
+            return v == 0
+        case Absent() if level_zero_equivalent:
+            return True
         case Present(value=v, unit=unit):
             if state != DocumentedState.POSITIVE:
                 return False
