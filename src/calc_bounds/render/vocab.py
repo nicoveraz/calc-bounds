@@ -152,3 +152,15 @@ NOT_MENTIONED_HINTS: dict[ParamId, str] = {
     "sbp": "Do not give a blood pressure or describe it.",
     "dbp": "Do not give a blood pressure or describe it.",
 }
+
+# Locale-specific additions to NOT_MENTIONED_HINTS (kept separate so other locales' prompts,
+# and their cached notes, do not change).
+LOCALE_NOT_MENTIONED_HINTS: dict[str, dict[ParamId, str]] = {
+    "es-CL": {
+        "sex": (
+            "In Spanish this includes grammatical gender: no gender-marked adjectives, "
+            "participles or articles referring to the patient (write 'paciente vigil, sin "
+            "compromiso de conciencia' rather than 'orientado/orientada', 'el/la paciente')."
+        ),
+    },
+}

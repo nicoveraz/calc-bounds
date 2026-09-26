@@ -58,6 +58,9 @@ def build_facts(case: PatientCase, calc: Calculator, locale: str = "en-US") -> l
             )
             if p.id in vocab.NOT_MENTIONED_HINTS:
                 text += " " + vocab.NOT_MENTIONED_HINTS[p.id]
+            extra = vocab.LOCALE_NOT_MENTIONED_HINTS.get(locale, {}).get(p.id)
+            if extra:
+                text += " " + extra
             if isinstance(p.domain, NumericDomain):
                 leaks.append(fmt(v, locale))
         else:

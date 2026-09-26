@@ -34,6 +34,12 @@ renders:
   sonnet:                 # main cohort, all cases
     provider: sonnet_session
     locales: [en-US]
+  es_pilot:               # 12-note es-CL pilot (nested in sonnet_es)
+    provider: sonnet_cli
+    locales: [es-CL]
+    judge_provider: opus_cli
+    subset_per_calculator: 2
+    max_workers: 3
   sonnet_es:              # es-CL rendering of the same cohort, directly from the structure
     provider: sonnet_cli
     locales: [es-CL]
@@ -76,7 +82,7 @@ simulator:
   unavailable_rate:
     heart_troponin: 0.1
 
-policies: [s1_ask_all, s3_bounds]
+policies: [s1_ask_all, s2_llm_agent, s3_bounds, s4_bounds_voi_echo, s3_bin]
 
 providers:
   sonnet_session:         # answered offline by a Claude Code session (Sonnet 5 subagents)
