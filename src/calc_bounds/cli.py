@@ -130,6 +130,7 @@ def all(config: Path) -> None:
 
 
 @app.command()
-def anchor(config: Path) -> None:
-    """Run the MedCalc-Bench anchor."""
-    _todo("M4")
+def anchor(config: Path, extractor: str = typer.Option(..., help="Key in `extractors`.")) -> None:
+    """Run the MedCalc-Bench anchor (extraction + code) with one extractor."""
+    out = pipeline.anchor_run(load_config(config), extractor)
+    typer.echo(out.with_suffix(".summary.csv").read_text())

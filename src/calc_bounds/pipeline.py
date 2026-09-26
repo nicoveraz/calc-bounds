@@ -4,7 +4,8 @@ from pathlib import Path
 
 import numpy as np
 
-from calc_bounds.calculators import Calculator, get_calculator
+from calc_bounds.bounds import from_extractions, score_bounds
+from calc_bounds.calculators import REGISTRY, Calculator, get_calculator
 from calc_bounds.cohort import PatientCase, generate_cohort
 from calc_bounds.cohort.generate import stable_seed
 from calc_bounds.config import ProviderConfig, RunConfig
@@ -33,6 +34,7 @@ from calc_bounds.render.prompts import (
 )
 from calc_bounds.render.validate import judge_issues, parse_judge, rule_issues
 from calc_bounds.simulator import SimulatedClinician, draw_unavailable
+from calc_bounds.units import to_canonical
 
 
 def run_dir(cfg: RunConfig) -> Path:
@@ -474,4 +476,93 @@ def calibrate(cfg: RunConfig, extractor: str, render: str) -> Path:
     out = run_dir(cfg) / "calibration" / f"{extractor}__{render}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2))
+    return out
+
+
+# --- M4: MedCalc-Bench anchor -------------------------------------------------------------------
+
+ANCHOR_PATH = Path("data/raw/medcalc/test_data.csv")
+
+
+def _point_score(calc: Calculator, known: dict) -> float | None:
+    b = score_bounds(calc, known)
+    return b.lo if b.lo == b.hi else None
+
+
+def anchor_run(cfg: RunConfig, extractor: str, path: Path = ANCHOR_PATH) -> Path:
+    """Extraction + code on MedCalc-Bench notes; see calc_bounds.anchor and docs/ANCHOR.md."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    import pandas as pd
+
+    from calc_bounds.anchor import AnchorCase, load_anchor
+    from calc_bounds.bounds import Exact
+
+    calcs = {c: get_calculator(c, cfg.calculator_options.get(c)) for c in REGISTRY}
+    xcfg = cfg.extractors[extractor]
+    llm = make_llm(cfg)
+    cases = load_anchor(path)
+
+    def work(a: AnchorCase) -> dict:
+        calc = calcs[a.calculator]
+        req = _extraction_request(cfg, extractor, calc, a.note)
+        resp = llm.complete(req, provider=xcfg.provider, stage=f"anchor:{extractor}")
+        ext = parse_extraction(str(a.row_number), a.note, calc, resp.text, resp.logprobs)
+        gt_cat = calc.category(a.ground_truth)
+        # (1) our code on their annotated entities, MedCalc convention (missing -> normal).
+        theirs = from_extractions(calc, {}, binary=True) | {
+            p: Exact(value=v) for p, v in a.entities.items()
+        }
+        ours_on_theirs = _point_score(calc, theirs)
+        # (2) our extraction, MedCalc convention.
+        conv = _point_score(calc, from_extractions(calc, ext.values, binary=True))
+        # (3) our extraction, tri-state bounds.
+        tri = score_bounds(calc, from_extractions(calc, ext.values))
+        # (4) parameter agreement with annotated entities.
+        agree = total = 0
+        for pid, v in a.entities.items():
+            e = ext.values[pid]
+            total += 1
+            if isinstance(v, bool):
+                agree += (e.kind == "present") == v
+            elif e.kind == "present":
+                got = e.value  # type: ignore[union-attr]
+                unit = e.unit  # type: ignore[union-attr]
+                got = to_canonical(pid, float(got), unit) if unit else float(got)
+                agree += abs(got - float(v)) <= 0.02 * max(abs(float(v)), 1e-9)
+        return {
+            "row_number": a.row_number,
+            "calculator": a.calculator,
+            "note_type": a.note_type,
+            "ground_truth": a.ground_truth,
+            "gt_category": gt_cat,
+            "ours_on_their_entities": ours_on_theirs,
+            "impl_agrees": ours_on_theirs is not None and a.lower <= ours_on_theirs <= a.upper,
+            "medcalc_convention_score": conv,
+            "medcalc_convention_correct": conv is not None and a.lower <= conv <= a.upper,
+            "medcalc_convention_category_correct": conv is not None
+            and calc.category(conv) == gt_cat,
+            "tristate_determined": len(tri.categories) == 1,
+            "tristate_category_correct": tri.categories == {gt_cat},
+            "tristate_gt_possible": gt_cat in tri.categories,
+            "entity_agreement": agree / total if total else None,
+            "rejected_claims": len(ext.rejected),
+        }
+
+    with ThreadPoolExecutor(max_workers=xcfg.max_workers) as pool:
+        rows = list(pool.map(work, cases))
+    out = run_dir(cfg) / "anchor" / f"{extractor}.csv"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(rows)
+    df.to_csv(out, index=False)
+    cols = [
+        "impl_agrees",
+        "medcalc_convention_correct",
+        "medcalc_convention_category_correct",
+        "tristate_determined",
+        "tristate_category_correct",
+        "tristate_gt_possible",
+        "entity_agreement",
+    ]
+    df.groupby("calculator")[cols].mean().round(3).to_csv(out.with_suffix(".summary.csv"))
     return out
