@@ -572,3 +572,37 @@ def anchor_run(cfg: RunConfig, extractor: str, path: Path = ANCHOR_PATH) -> Path
     ]
     df.groupby("calculator")[cols].mean().round(3).to_csv(out.with_suffix(".summary.csv"))
     return out
+
+
+def renderer_bias_report(
+    cfg: RunConfig, extractors: tuple[str, str], renders: tuple[str, str]
+) -> Path:
+    """2x2 renderer family x extractor family on cases whose notes pass validation in both
+    render sets (option 1 agreed with the user: exploratory, small n)."""
+    import json
+
+    from calc_bounds.eval.bias import claim_frame, renderer_bias
+
+    cases = {c.case_id: c for c in read_jsonl(run_dir(cfg) / "cohort.jsonl", PatientCase)}
+    valid: set[str] | None = None
+    for r in renders:
+        ok = {
+            n.case_id
+            for n in read_jsonl(notes_path(cfg, r), RenderedNote)
+            if not n.validation_failed
+        }
+        valid = ok if valid is None else valid & ok
+    assert valid is not None
+    results = {
+        (x, r): read_jsonl(extractions_path(cfg, x, r), ExtractionResult)
+        for x in extractors
+        for r in renders
+    }
+    report = renderer_bias(claim_frame(cases, results, valid), extractors, renders)
+    report["by_calculator_n"] = {
+        c: sum(cases[i].calculator == c for i in valid) for c in cfg.calculators
+    }
+    out = run_dir(cfg) / "eval" / "renderer_bias.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, indent=2))
+    return out

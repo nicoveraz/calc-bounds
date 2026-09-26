@@ -132,3 +132,22 @@ def test_claim_correct_level_zero_equivalence() -> None:
     assert claim_correct(case, "heart_troponin", Present(value=2, **kw))
     assert not claim_correct(case, "heart_troponin", Absent(**kw))  # level 2 is not normal
     assert not claim_correct(case, "heart_history", Present(value=1, **kw))  # not documented
+
+
+def test_renderer_bias_interaction() -> None:
+    import pandas as pd
+
+    from calc_bounds.eval.bias import interaction, renderer_bias
+
+    rows = []
+    # Extractor A: 1.0 on A-notes, 0.8 on B-notes; extractor B: 0.9 on both -> interaction 0.2
+    for cid in range(10):
+        for x, r, ok in [("A", "a", 10), ("A", "b", 8), ("B", "a", 9), ("B", "b", 9)]:
+            for k in range(10):
+                rows.append(
+                    {"extractor": x, "render": r, "case_id": cid, "param": k, "correct": k < ok}
+                )
+    df = pd.DataFrame(rows)
+    assert interaction(df, ("A", "B"), ("a", "b")) == pytest.approx(0.2)
+    rep = renderer_bias(df, ("A", "B"), ("a", "b"), n_boot=200)
+    assert rep["n_cases"] == 10 and rep["ci95"][0] == pytest.approx(0.2)

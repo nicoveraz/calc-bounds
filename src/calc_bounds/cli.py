@@ -130,6 +130,19 @@ def all(config: Path) -> None:
 
 
 @app.command()
+def bias(
+    config: Path,
+    extractors: str = typer.Option("haiku,qwen_local", help="Two extractors, comma-separated."),
+    renders: str = typer.Option("sonnet,local", help="Their families' render sets, same order."),
+) -> None:
+    """Renderer-family x extractor-family 2x2 on validated notes."""
+    x = tuple(extractors.split(","))
+    r = tuple(renders.split(","))
+    out = pipeline.renderer_bias_report(load_config(config), x, r)  # type: ignore[arg-type]
+    typer.echo(out.read_text())
+
+
+@app.command()
 def anchor(config: Path, extractor: str = typer.Option(..., help="Key in `extractors`.")) -> None:
     """Run the MedCalc-Bench anchor (extraction + code) with one extractor."""
     out = pipeline.anchor_run(load_config(config), extractor)
