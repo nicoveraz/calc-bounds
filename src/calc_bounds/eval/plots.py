@@ -25,9 +25,9 @@ MUTED = "#6b6a63"
 GRID = "#e4e3dc"
 
 
-def _style_axes(ax: plt.Axes, title: str) -> None:
+def _style_axes(ax: plt.Axes, title: str, ymin: float = 0.0) -> None:
     ax.set_title(title, loc="left", fontsize=10, color=INK)
-    ax.set_ylim(-0.02, 1.05)
+    ax.set_ylim(ymin, 1.005)
     ax.grid(True, color=GRID, linewidth=0.8)
     ax.set_axisbelow(True)
     for side in ("top", "right"):
@@ -37,7 +37,11 @@ def _style_axes(ax: plt.Axes, title: str) -> None:
     ax.tick_params(colors=MUTED, labelsize=8)
 
 
+LABEL_OFFSETS = [(8, 6), (8, -12), (8, 18), (8, -24), (8, 30)]
+
+
 def _plot_points(ax: plt.Axes, df: pd.DataFrame, *, labels: bool) -> None:
+    order = {p: i for i, p in enumerate(df.sort_values("mean_questions")["policy"])}
     for _, row in df.iterrows():
         color, marker, name = POLICY_STYLE.get(row["policy"], (MUTED, "o", row["policy"]))
         ax.scatter(
@@ -55,7 +59,7 @@ def _plot_points(ax: plt.Axes, df: pd.DataFrame, *, labels: bool) -> None:
             ax.annotate(
                 name,
                 (row["mean_questions"], row["accuracy"]),
-                xytext=(8, -3),
+                xytext=LABEL_OFFSETS[order[row["policy"]] % len(LABEL_OFFSETS)],
                 textcoords="offset points",
                 fontsize=8,
                 color=INK,
@@ -70,9 +74,11 @@ def accuracy_vs_questions(overall: pd.DataFrame, per_calc: pd.DataFrame, out: Pa
     fig = plt.figure(figsize=(11, 3.3 * nrows), facecolor="white")
     gs = fig.add_gridspec(nrows, ncols)
 
+    # Zoom to the data (accuracy differences here are a few points), never below 0.
+    ymin = max(0.0, min(overall["accuracy"].min(), per_calc["accuracy"].min()) - 0.03)
     ax = fig.add_subplot(gs[0, :])
-    _plot_points(ax, overall, labels=True)
-    _style_axes(ax, "All calculators: decision-category accuracy vs mean questions per case")
+    _plot_points(ax, overall, labels=len(overall) <= 3)  # legend carries identity beyond 3
+    _style_axes(ax, "All calculators: decision-category accuracy vs mean questions per case", ymin)
     ax.set_xlabel("Mean questions per case", color=MUTED, fontsize=9)
     ax.set_ylabel("Category accuracy", color=MUTED, fontsize=9)
     ax.set_xlim(-0.2, overall["mean_questions"].max() * 1.15 + 0.3)
@@ -83,7 +89,7 @@ def accuracy_vs_questions(overall: pd.DataFrame, per_calc: pd.DataFrame, out: Pa
     for i, calc in enumerate(calcs):
         a = fig.add_subplot(gs[1 + i // ncols, i % ncols])
         _plot_points(a, per_calc[per_calc["calculator"] == calc], labels=False)
-        _style_axes(a, calc)
+        _style_axes(a, calc, ymin)
         a.set_xlim(-0.2, xmax)
 
     fig.tight_layout()
