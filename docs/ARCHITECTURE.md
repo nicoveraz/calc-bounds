@@ -112,6 +112,35 @@ The oracle extractor lets `cohort → policy → eval` run with no notes and no 
   `sonnet` for all cases, `local` for a 25-per-calculator subset) for the 2×2 renderer ×
   extractor-family comparison in M4.
 
+## M4 extraction and calibration ($0 plan)
+- **Providers.**
+  - `claude_cli`: Claude via headless Claude Code (`claude -p`), billed to the subscription.
+    The flags make it as close to a plain model call as the CLI allows: our own
+    `--system-prompt`, `--tools ""`, `--strict-mcp-config`,
+    `--exclude-dynamic-system-prompt-sections`, `--no-session-persistence`, `--json-schema`,
+    run from an empty directory. About 1.2k input tokens of harness overhead per call.
+    Methods wording: "Claude via Claude Code headless".
+  - `ollama`: the native `/api/chat` endpoint, which supports JSON schema, `think`, seed and
+    token logprobs. The OpenAI-compatible endpoint has no logprobs.
+- **Extractor output.** Per parameter: status, value, unit token, exact evidence quote, and a
+  self-reported confidence. Code then:
+  - locates the quote (non-exact quotes are rejected and the parameter becomes Unknown);
+  - normalizes units;
+  - rejects Absent for non-negatable parameters and values outside the plausible range.
+- **Confidence.** With logprobs: P(status tokens) × P(value tokens) of that parameter's
+  object. Without them: self-reported, and flagged as such.
+- **Scoring a claim.** Present is correct if the item is documented positive and the value
+  matches the truth (numeric in canonical units). Absent is correct if the item is documented
+  negative. Unknown is correct if the item is not documented. Level 0 of a negatable graded
+  item counts as normal.
+- **Calibration.** None, temperature scaling or isotonic, fitted on a seeded 30% dev split per
+  calculator. Brier, ECE and reliability are reported on the remaining test split.
+- **Outputs.**
+  - `extractions/<extractor>__<render>.jsonl`
+  - `calibration/<extractor>__<render>.json`
+  - `traces/<label>.jsonl` and `eval/<label>/`, where the label is `oracle` or
+    `<extractor>__<render>`.
+
 ## Config format
 YAML validated by `config.RunConfig` (extra keys rejected). See
 `configs/m2_oracle.yaml`. Sections: `run_id`, `seed`, `calculators`,
