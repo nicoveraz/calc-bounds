@@ -8,6 +8,12 @@ A sanity check of our extraction + code pipeline against a published benchmark.
   the original `ncbi-nlp/MedCalc-Bench` repository points to.
 - **Downloaded:** 2026-09-26 to `data/raw/medcalc/`, which is gitignored and never committed.
 - **SHA-256:** `9d296b09668d945d7c4ad8136032e984a3a3b8b0a7b046eb0f9f787331d9d97d`.
+- **Training split** (`train_data.csv`), downloaded 2026-09-26, SHA-256
+  `bd0292576be31e2fa8140c2e9eb456168335a85d1986155f010082d64f497845`.
+  - It has 947 notes for our five calculators, all extracted from real case reports.
+  - 3 notes that also appear in the test split are excluded.
+  - We use a seeded sample of at most 125 per calculator (585 notes), via
+    `calc-bounds anchor --split train --per-calc 125`.
 - **License:** CC-BY-SA 4.0. The notes are largely drawn from PMC-Patients (CC-BY-SA 4.0).
   We don't redistribute them.
 - **Label caveat:** no fully physician-adjudicated corrected labels exist.
