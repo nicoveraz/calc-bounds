@@ -130,6 +130,13 @@ def all(config: Path) -> None:
 
 
 @app.command()
+def report(config: Path) -> None:
+    """Cross-source English report: summaries, paired stats, attribution, S4 sweep,
+    missingness sensitivity, figures (code-only; run after `run` for each source)."""
+    typer.echo(f"wrote {pipeline.report(load_config(config))}")
+
+
+@app.command()
 def bias(
     config: Path,
     extractors: str = typer.Option("haiku,qwen_local", help="Two extractors, comma-separated."),

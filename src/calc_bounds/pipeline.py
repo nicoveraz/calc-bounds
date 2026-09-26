@@ -177,6 +177,15 @@ def evaluate(cfg: RunConfig) -> Path:
     by_coverage.to_csv(out / "summary_by_coverage.csv", index=False)
     ext = metrics.extraction_table(cases, traces)
     ext.to_csv(out / "extraction_claims.csv", index=False)
+    from calc_bounds.eval.attribution import attribution_table
+    from calc_bounds.eval.stats import comparisons
+
+    comparisons(table).to_csv(out / "comparisons.csv", index=False)
+    attr = attribution_table(cases, traces)
+    attr.to_csv(out / "errors.csv", index=False)
+    attr.groupby(["policy", "cause"]).size().rename("n").reset_index().to_csv(
+        out / "error_attribution.csv", index=False
+    )
     ext.groupby(["policy", "documented"])["correct"].mean().reset_index().to_csv(
         out / "extraction_by_documented_state.csv", index=False
     )
@@ -685,3 +694,179 @@ def renderer_bias_report(
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2))
     return out
+
+
+# --- M6: cross-source report --------------------------------------------------------------------
+
+REPORT_SOURCES = ["oracle", "haiku__sonnet", "qwen_local__sonnet"]
+ECHO_THRESHOLDS = [0.5, 0.8, 0.9, 0.95, 0.99, 0.999]
+MISSINGNESS_LEVELS = [0.1, 0.3, 0.5]
+
+
+def _cfg_for(cfg: RunConfig, label: str) -> RunConfig:
+    if label == "oracle":
+        x = cfg.extraction.model_copy(update={"kind": "oracle", "extractor": None, "render": None})
+    else:
+        extractor, render = label.split("__")
+        x = cfg.extraction.model_copy(
+            update={"kind": "llm", "extractor": extractor, "render": render}
+        )
+    return RunConfig.model_validate(cfg.model_dump() | {"extraction": x.model_dump()})
+
+
+def report(cfg: RunConfig, missingness_n: int = 200) -> Path:
+    """Aggregate English results across extraction sources (code-only; S2 traces come from
+    the cache). Writes runs/<run>/report/."""
+    import pandas as pd
+
+    from calc_bounds.eval import metrics, plots
+    from calc_bounds.eval.report import (
+        natural_undetermined_share,
+        reliability_figure,
+        reweight,
+    )
+
+    out = run_dir(cfg) / "report"
+    out.mkdir(parents=True, exist_ok=True)
+    cases = read_jsonl(run_dir(cfg) / "cohort.jsonl", PatientCase)
+    calcs = calculators(cfg)
+    shares = {
+        c: natural_undetermined_share(calc, cfg.cohort, cfg.seed) for c, calc in calcs.items()
+    }
+    pd.Series(shares, name="natural_undetermined_share").to_csv(out / "natural_share.csv")
+
+    summaries, comps, attrs, natural, sweep, claims = [], [], [], [], [], {}
+    for label in REPORT_SOURCES:
+        if not traces_path(_cfg_for(cfg, label)).exists():
+            continue
+        c = _cfg_for(cfg, label)
+        ev = evaluate(c)
+        s = pd.read_csv(ev / "summary.csv")
+        s.insert(0, "extraction", label)
+        summaries.append(s)
+        cp = pd.read_csv(ev / "comparisons.csv")
+        cp.insert(0, "extraction", label)
+        comps.append(cp)
+        at = pd.read_csv(ev / "error_attribution.csv")
+        at.insert(0, "extraction", label)
+        attrs.append(at)
+        table = metrics.case_table(cases, read_jsonl(traces_path(c), Trace))
+        by_cov = (
+            table.groupby(["policy", "calculator", "determined_from_note"])[
+                ["correct", "n_questions"]
+            ]
+            .mean()
+            .reset_index()
+        )
+        nat = reweight(by_cov, shares, "correct").merge(
+            reweight(by_cov, shares, "n_questions"),
+            on=["policy", "calculator", "natural_undetermined"],
+        )
+        nat.insert(0, "extraction", label)
+        natural.append(nat)
+        if label != "oracle":
+            claims[label.split("__")[0]] = pd.read_csv(ev / "extraction_claims.csv").query(
+                "policy == 's3_bounds'"
+            )
+            for tau in ECHO_THRESHOLDS:
+                ct = c.model_copy(
+                    update={"echo_threshold": tau, "policies": ["s4_bounds_voi_echo"]}
+                )
+                ct = RunConfig.model_validate(ct.model_dump())
+                tr = _run_code_policies(ct, cases)
+                t = metrics.case_table(cases, tr)
+                sweep.append(
+                    {
+                        "extraction": label,
+                        "echo_threshold": tau,
+                        "accuracy": t["correct"].mean(),
+                        "mean_questions": t["n_questions"].mean(),
+                        "echo_per_case": t["n_echo_questions"].mean(),
+                        "echo_caught_errors": int(t["n_echo_caught_errors"].sum()),
+                    }
+                )
+    pd.concat(summaries).to_csv(out / "summary_all.csv", index=False)
+    pd.concat(comps).to_csv(out / "comparisons_all.csv", index=False)
+    pd.concat(attrs).to_csv(out / "error_attribution_all.csv", index=False)
+    pd.concat(natural).to_csv(out / "natural_share_reweighted.csv", index=False)
+    if sweep:
+        pd.DataFrame(sweep).to_csv(out / "s4_echo_threshold_sweep.csv", index=False)
+    if claims:
+        reliability_figure(claims, out / "reliability.png")
+
+    # Missingness sensitivity (oracle extraction, code policies, fresh cohorts).
+    rows = []
+    for m in MISSINGNESS_LEVELS:
+        cc = cfg.cohort.model_copy(update={"missingness": m, "n_per_calculator": missingness_n})
+        mcfg = RunConfig.model_validate(
+            cfg.model_dump()
+            | {
+                "cohort": cc.model_dump(),
+                "policies": ["s1_ask_all", "s3_bounds", "s3_bin", "s4_bounds_voi_echo"],
+                "extraction": {"kind": "oracle"},
+            }
+        )
+        mcases = generate_cohort(list(calcs.values()), cc, cfg.seed)
+        t = metrics.case_table(mcases, _run_code_policies(mcfg, mcases))
+        mshares = {
+            c: natural_undetermined_share(calc, cc, cfg.seed, n=1000) for c, calc in calcs.items()
+        }
+        by_cov = (
+            t.groupby(["policy", "calculator", "determined_from_note"])[["correct", "n_questions"]]
+            .mean()
+            .reset_index()
+        )
+        nat = reweight(by_cov, mshares, "correct").merge(
+            reweight(by_cov, mshares, "n_questions"),
+            on=["policy", "calculator", "natural_undetermined"],
+        )
+        for pol, g in nat.groupby("policy"):
+            rows.append(
+                {
+                    "missingness": m,
+                    "policy": pol,
+                    "accuracy_natural": g["correct"].mean(),
+                    "questions_natural": g["n_questions"].mean(),
+                    "mean_natural_undetermined": g["natural_undetermined"].mean(),
+                }
+            )
+    pd.DataFrame(rows).to_csv(out / "missingness_sensitivity.csv", index=False)
+
+    s_all = pd.concat(summaries)
+    for label in s_all["extraction"].unique():
+        s = s_all[s_all["extraction"] == label]
+        plots.accuracy_vs_questions(
+            s.drop(columns="extraction"),
+            metrics.summary(
+                metrics.case_table(cases, read_jsonl(traces_path(_cfg_for(cfg, label)), Trace)),
+                ["policy", "calculator"],
+            ),
+            out / f"accuracy_vs_questions__{label}.png",
+        )
+    return out
+
+
+def _run_code_policies(cfg: RunConfig, cases: list[PatientCase]) -> list[Trace]:
+    """Run code-only policies over the given cases (no LLM calls)."""
+    calcs = calculators(cfg)
+    extractor = _extractor(cfg, cases)
+    if isinstance(extractor, PrecomputedExtractor):
+        cases = [c for c in cases if c.case_id in extractor.results]
+    policies = make_policies(cfg)
+    traces = []
+    for case in cases:
+        calc = calcs[case.calculator]
+        unavailable = draw_unavailable(
+            [p.id for p in calc.parameters],
+            cfg.simulator.unavailable_rate,
+            stable_seed(cfg.seed, case.case_id, "simulator"),
+        )
+        for pid in cfg.policies:
+            if pid == "s2_llm_agent":
+                continue
+            traces.append(
+                policies[pid].run(
+                    case, "", calc, extractor, SimulatedClinician(case.truth, unavailable)
+                )
+            )
+    return traces
