@@ -55,15 +55,15 @@ Details: [`docs/RESULTS.md`](docs/RESULTS.md) · tables and figures: [`paper/`](
 - **Calculators:** HEART, CURB-65, qSOFA, PERC, Wells (PE, two-tier) and Cockcroft-Gault.
   Each cites its primary source; open clinical questions are listed in
   [`docs/CALCULATOR_NOTES.md`](docs/CALCULATOR_NOTES.md).
-- **Systems:**
+- **Policies** (config id in brackets):
 
-  | id | system |
-  |----|--------|
-  | S1 | ask for every missing input |
-  | S2 | end-to-end LLM agent with ask / calculate / answer actions |
-  | S3 | tri-state extraction + bounds; ask only decision-relevant inputs |
-  | S4 | S3 + value-of-information ordering + confirmation of low-confidence values |
-  | S3-bin | S3 with missing inputs treated as normal (the common convention) |
+  | Policy | What it does |
+  |--------|--------------|
+  | Ask-all (`s1_ask_all`) | asks for every missing input |
+  | Agent (`s2_llm_agent`) | end-to-end LLM agent with ask / calculate / answer actions |
+  | Bounds (`s3_bounds`) | tri-state extraction + bounds; asks only decision-relevant inputs |
+  | Bounds + checks (`s4_bounds_voi_echo`) | Bounds + value-of-information ordering + confirmation of low-confidence values |
+  | Missing = normal (`s3_bin`) | Bounds with missing inputs treated as normal (the common convention) |
 
 - **Conditions:** clean or messy notes × ideal or noisy simulated clinician.
 

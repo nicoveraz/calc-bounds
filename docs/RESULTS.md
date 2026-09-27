@@ -29,11 +29,11 @@ committed) and the paper tables (`paper/tables/`). The Spanish (es-CL) arm is pa
 | Term | Meaning |
 |---|---|
 | **Risk group** (decision category) | The group a score puts the patient in, e.g. HEART low / moderate / high risk. Accuracy means getting this group right. |
-| **Ask-all** (S1) | Ask the clinician about every item the note does not mention. |
-| **Our approach** (S3, "bounds") | The AI marks each item *present*, *absent* or *not mentioned*. Code works out the lowest and highest score still possible. If both give the same risk group, it answers; otherwise it asks only about items that could change the group. |
-| **Our approach + checks** (S4) | As S3, but asks the most useful question first, and asks the clinician to confirm items the AI was unsure about. |
-| **Missing = normal** (S3-bin) | Same as S3, except anything not mentioned is assumed normal. This is the common convention in tools and benchmarks. |
-| **AI agent** (S2) | Claude Opus 5.5 reads the note, decides itself what to ask, and calls the calculator. |
+| **Ask-all** | Ask the clinician about every item the note does not mention. |
+| **Our approach** (*Bounds* in the paper) | The AI marks each item *present*, *absent* or *not mentioned*. Code works out the lowest and highest score still possible. If both give the same risk group, it answers; otherwise it asks only about items that could change the group. |
+| **Our approach + checks** (*Bounds + checks* in the paper) | As our approach, but asks the most useful question first, and asks the clinician to confirm items the AI was unsure about. |
+| **Missing = normal** | Same as our approach, except anything not mentioned is assumed normal. This is the common convention in tools and benchmarks. |
+| **AI agent** (*Agent* in the paper) | Claude Opus 5.5 reads the note, decides itself what to ask, and calls the calculator. |
 | **Reader** (extraction source) | Who reads the note: *perfect reader* (reads the true answers, a best-case baseline), *Haiku* (Claude Haiku 4.5, a small commercial model) or *Qwen 9B* (a small model running on a laptop). |
 | **Under-triage** | The patient is put in a *lower*-risk group than the truth. The dangerous error. |
 | **Over-triage** | The patient is put in a *higher*-risk group than the truth. Safer, but costly. |
@@ -135,7 +135,7 @@ The Opus agent is strong: 99.6% accuracy with 0.99 questions per patient.
   loss with our approach.
 
 ### 4. Confirming uncertain readings helps a little: confirmed, small numbers
-In S4, the clinician is asked to confirm items the reader was unsure about. The higher the
+With checks, the clinician is asked to confirm items the reader was unsure about. The higher the
 threshold, the more is confirmed:
 
 | Reader | Confirm when confidence is below | Right risk group | Confirmation questions per patient | Reading errors caught |
