@@ -23,6 +23,9 @@ cohort:
     comorbidity_via_medication: 0.1
 
 renders:
+  # --- Paper 1 uses: sonnet (clean notes), messy (harder notes), local (bias subset). ---
+  # pilot, stage1, es_pilot and sonnet_es are kept for provenance (earlier stages; the
+  # Spanish arm is paused).
   pilot:                  # small pilot before the full render
     provider: sonnet_session
     locales: [en-US]

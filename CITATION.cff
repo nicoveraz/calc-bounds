@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the accompanying paper."
+title: "calc-bounds: separating LLM extraction from rule-based decision logic for clinical risk scores"
+authors:
+  - family-names: "Vera Zúñiga"
+    given-names: "Nicolás"
+    # TO CONFIRM: affiliation, ORCID
+version: "0.1.0"
+date-released: "2026-09-27"
+# TO CONFIRM: license, repository-code URL, preferred-citation (paper DOI once available)

@@ -1,0 +1,8 @@
+| Calculator | Cases | Parameters | True categories | Undetermined from note | Params not documented, % | Cases with traps |
+|---|---|---|---|---|---|---|
+| HEART | 200 | 11 | low 82, moderate 103, high 15 | 100 | 25 | 56 |
+| CURB-65 | 200 | 6 | low 95, moderate 68, high 37 | 100 | 24 | 61 |
+| qSOFA | 200 | 3 | negative 154, positive 46 | 100 | 33 | 53 |
+| PERC | 200 | 8 | negative 86, positive 114 | 100 | 29 | 61 |
+| Wells PE | 200 | 7 | pe_unlikely 162, pe_likely 38 | 100 | 29 | 56 |
+| Cockcroft-Gault | 200 | 4 | crcl_lt_30 23, crcl_30_to_lt_60 91, crcl_ge_60 86 | 100 | 24 | 39 |

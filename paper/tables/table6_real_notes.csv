@@ -1,0 +1,25 @@
+Split,Extractor,Calculator,n,"Code reproduces label, %","Determined from note, % (95% CI)","Truth still possible, %","Category correct, missing=normal, %","Entity agreement, %"
+train,Haiku 4.5,Cockcroft-Gault,125,51,88.0 (81.1–92.6),85,71,90
+train,Haiku 4.5,CURB-65,85,100,49.4 (39.0–59.8),93,82,89
+train,Haiku 4.5,HEART,125,100,12.8 (8.0–19.8),90,22,73
+train,Haiku 4.5,PERC,124,100,90.3 (83.8–94.4),100,94,90
+train,Haiku 4.5,Wells PE,125,100,19.2 (13.3–27.0),98,81,87
+train,Haiku 4.5,All,584,90,52.1 (48.0–56.1),93,69,86
+train,Qwen3.5-9B,Cockcroft-Gault,125,51,84.8 (77.5–90.0),90,72,92
+train,Qwen3.5-9B,CURB-65,85,100,41.2 (31.3–51.8),95,81,92
+train,Qwen3.5-9B,HEART,125,100,12.0 (7.4–18.9),93,9,74
+train,Qwen3.5-9B,PERC,124,100,87.9 (81.0–92.5),100,91,89
+train,Qwen3.5-9B,Wells PE,125,100,9.6 (5.6–16.0),99,78,88
+train,Qwen3.5-9B,All,584,90,47.4 (43.4–51.5),95,65,87
+test,Haiku 4.5,Cockcroft-Gault,20,40,95.0 (76.4–99.1),100,95,96
+test,Haiku 4.5,CURB-65,20,100,55.0 (34.2–74.2),100,100,97
+test,Haiku 4.5,HEART,20,95,60.0 (38.7–78.1),85,45,87
+test,Haiku 4.5,PERC,20,100,75.0 (53.1–88.8),100,95,99
+test,Haiku 4.5,Wells PE,20,100,10.0 (2.8–30.1),100,85,89
+test,Haiku 4.5,All,100,87,59.0 (49.2–68.1),97,84,94
+test,Qwen3.5-9B,Cockcroft-Gault,20,40,90.0 (69.9–97.2),100,90,96
+test,Qwen3.5-9B,CURB-65,20,100,50.0 (29.9–70.1),95,90,98
+test,Qwen3.5-9B,HEART,20,95,30.0 (14.5–51.9),95,35,77
+test,Qwen3.5-9B,PERC,20,100,75.0 (53.1–88.8),100,95,96
+test,Qwen3.5-9B,Wells PE,20,100,10.0 (2.8–30.1),100,85,89
+test,Qwen3.5-9B,All,100,87,51.0 (41.3–60.6),98,79,91

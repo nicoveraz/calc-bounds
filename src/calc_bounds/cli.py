@@ -148,6 +148,18 @@ def report(config: Path) -> None:
     typer.echo(f"wrote {pipeline.report(load_config(config))}")
 
 
+PAPER_OUT_OPT = typer.Option(Path("paper"), help="Output directory.")
+
+
+@app.command()
+def paper(config: Path, out: Path = PAPER_OUT_OPT) -> None:
+    """Regenerate Paper 1 tables and figures from run outputs (no model calls)."""
+    from calc_bounds.eval.paper import build
+
+    cfg = load_config(config)
+    typer.echo(build(pipeline.run_dir(cfg), out, pipeline.calculators(cfg)))
+
+
 @app.command()
 def bias(
     config: Path,

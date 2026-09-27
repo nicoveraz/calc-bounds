@@ -32,6 +32,12 @@ computes the score and decides which missing params are decision-relevant (score
 - Tests: `tests/`, hypothesis property tests for bounds are mandatory. Tests that hit a real
   LLM are marked `@pytest.mark.llm` and are skipped by default.
 
+## Paper 1
+- `scripts/reproduce_paper.sh` regenerates all tables and figures (`paper/`) from the cache.
+- Numbers in `paper/manuscript.md` must come from `paper/tables/` (`calc-bounds paper`); never
+  hand-compute them.
+- The Spanish (es-CL) arm is paused.
+
 ## Commands
 ```sh
 uv sync                                  # install

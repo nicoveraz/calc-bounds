@@ -1,3 +1,5 @@
+> **Superseded by `RESULTS.md`** (kept for provenance of the M4 milestone).
+
 # M4 results: LLM extractors, calibration, anchor
 
 All runs cost $0 (see the memory note on the zero-budget plan):
