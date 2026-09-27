@@ -9,7 +9,7 @@ import math
 import pandas as pd
 
 from calc_bounds.calculators import REGISTRY
-from calc_bounds.cohort import PatientCase
+from calc_bounds.cohort import PatientCase, TrapKind
 from calc_bounds.policies import Trace
 from calc_bounds.types import Absent, DocumentedState, Extraction, OrdinalDomain, Present, Unknown
 from calc_bounds.units import UnitError, to_canonical
@@ -114,8 +114,17 @@ def claim_correct(case: PatientCase, pid: str, e: Extraction) -> bool:
 
     Present: documented positive and value equal to the truth (numeric in canonical units,
     relative tolerance 1e-3); Absent: documented negative; Unknown: not documented.
+
+    Exception: a comorbidity conveyed only through a medication (e.g. lisinopril for
+    hypertension) is not clinically certain, so Present and Unknown are both correct there;
+    only Absent is wrong.
     """
     state = case.documented[pid]
+    medication_only = any(
+        t.param == pid and t.kind == TrapKind.COMORBIDITY_VIA_MEDICATION for t in case.traps
+    )
+    if medication_only:
+        return isinstance(e, Present | Unknown)
     calc_params = {p.id: p for c in REGISTRY.values() for p in c.parameters}
     level_zero_equivalent = (
         isinstance(calc_params[pid].domain, OrdinalDomain)

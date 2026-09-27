@@ -132,6 +132,7 @@ The noise does not depend on question order, so all policies face the same clini
 - premature commitment (answering while the category was undetermined by the documented facts plus answers received);
 - irrelevant questions (asked when the input could not change the category);
 - silent missing-as-absent claims;
+- extraction accuracy by documented state. A comorbidity conveyed only through a medication (e.g. lisinopril, never naming hypertension) is not clinically certain, so both "present" and "unknown" count as correct there; only "absent" is an error;
 - calibration (Brier score, expected calibration error).
 
 **Tests.** Proportions have Wilson 95% confidence intervals and mean questions have 2,000-resample bootstrap intervals. Systems were compared on the same cases with exact McNemar tests (accuracy) and Wilcoxon signed-rank tests (questions). P-values were Holm-adjusted within each condition across four pre-specified comparisons (S3 vs S1, S3 vs S2, S3 vs S3-bin, S4 vs S3). Errors were attributed to abstention, extraction, routing (premature commitment), clinician error, or bounds.
@@ -231,6 +232,7 @@ MedCalc-Bench and its audits [MedCalc-Bench; Ye et al.; Krohn-Grimberghe] evalua
 ### 4.3 Limitations
 - **Synthetic notes.** The main cohort's notes were generated and validated by LLMs from the same family as the Claude extractor. An exploratory analysis of 46 cases with notes from both Sonnet and Qwen suggested a small same-family advantage (+3.2 points, 95% CI 0.4–6.4). Synthetic notes are also more complete and cleaner than real ones, as the real-note analysis shows, so absolute accuracies are optimistic. Differences in question counts and safety are the more transferable results.
 - **Simulated clinician.** It follows a simple parametric model and has not been calibrated to real clinicians.
+- **Independent priors.** Patient characteristics were sampled independently (apart from blood pressure), which can produce implausible combinations, such as established coronary disease with no risk factors. This does not change scores, but it lowers the face validity of some cases.
 - **Model access.** Claude models were accessed through Claude Code's headless mode rather than a bare API. This adds about 1,200 tokens of harness context, and their confidence is self-reported.
 - **Real-note evaluation.** It does not include asking questions, because no real clinician was available to answer. Its labels have known errors [Ye et al.; Krohn-Grimberghe].
 - **Calculator readings.** Several readings (Supplementary Table S1) and the population priors await clinical review. **[PENDING.]**

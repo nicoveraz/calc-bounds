@@ -185,3 +185,47 @@ def test_conservative_fallback_and_triage_direction() -> None:
         conservative_category(trace("wells_pe", {"pe_unlikely"}, policy="s2_llm_agent"))
         == "pe_likely"
     )
+
+
+def test_medication_only_comorbidity_accepts_unknown() -> None:
+    from calc_bounds.cohort import PatientCase, Trap, TrapKind
+    from calc_bounds.eval.metrics import claim_correct
+    from calc_bounds.types import DocumentedState as D
+    from calc_bounds.types import EvidenceSpan
+
+    heart = REGISTRY["heart"]
+    truth = {p.id: False for p in heart.parameters} | {
+        "heart_history": 0,
+        "heart_ecg": 0,
+        "age": 50.0,
+        "heart_troponin": 0,
+        "hypertension": True,
+    }
+    documented = dict.fromkeys(truth, D.NOT_DOCUMENTED) | {"hypertension": D.POSITIVE}
+    case = PatientCase(
+        case_id="h",
+        seed=0,
+        calculator="heart",
+        truth=truth,
+        documented=documented,
+        traps=[
+            Trap(
+                kind=TrapKind.COMORBIDITY_VIA_MEDICATION,
+                param="hypertension",
+                detail={"medication": "lisinopril"},
+            )
+        ],
+        true_score=0,
+        true_category="low",
+        determined_from_note=False,
+    )
+    ev = EvidenceSpan(start=0, end=1, text="x")
+    assert claim_correct(case, "hypertension", Unknown())
+    assert claim_correct(
+        case,
+        "hypertension",
+        Present(value=True, confidence=1, confidence_source="self_reported", evidence=ev),
+    )
+    assert not claim_correct(
+        case, "hypertension", Absent(confidence=1, confidence_source="self_reported", evidence=ev)
+    )

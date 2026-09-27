@@ -216,7 +216,7 @@ size (1,200 clean vs 559 messy), so compare within a row group.
   routing errors and no bounds errors.
 - **S2:** 2 abstentions, 2 wrong answers given while the case was already determined
   (misreads), and 1 premature commitment.
-- **S3-bin:** 74–99 routing errors, plus extraction errors.
+- **S3-bin:** 76–99 routing errors, plus extraction errors.
 - **Bounds errors:** none anywhere, consistent with the property tests.
 
 ## External anchor (MedCalc-Bench Verified, 100 real case reports; see ANCHOR.md)

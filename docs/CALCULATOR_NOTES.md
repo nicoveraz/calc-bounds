@@ -9,30 +9,50 @@ not accessible) · **[S]** secondary source (NICE, MDCalc, NKF, later papers by 
 
 ## Summary of review items
 
-| # | Calculator | Item | Implemented | Alternatives |
-|---|---|---|---|---|
-| 1 | HEART | Troponin bands | levels ≤ normal / 1–3× / > 3× (level assigned upstream) | Six 2008: 1–2× / > 2×; Backus 2011, Poldervaart 2013: ≥ 3× → 2 |
-| 2 | HEART | Age exactly 45 | 1 point (`age >= 45`) | Poldervaart 2013: ≤ 45 → 0 |
-| 3 | HEART | ECG 2 points | "significant ST deviation" (depression or elevation) | 2008 table: ST depression only |
-| 4 | HEART | Smoking recency | boolean "current or recent smoker" | < 1 month (Six 2008) vs ≤ 3 months (MDCalc) |
-| 5 | HEART | Family history definition | boolean | 1st-degree relative with CVD < 65 (MDCalc) [U in primary] |
-| 6 | HEART | Obesity | boolean, labelled BMI > 30 | not defined in Six 2008; BMI > 30 in Poldervaart 2013 |
-| 7 | HEART | TIA as atherosclerotic disease | included in label | Six 2008 lists revascularisation, MI, stroke, PAD |
-| 8 | CURB-65 | BUN equivalent | code converts BUN → urea mmol/L and applies > 7 (= BUN > 19.6) | MDCalc: BUN > 19 mg/dL |
-| 9 | CURB-65 / qSOFA | Confusion vs altered mentation | two separate parameters | share one parameter |
-| 10 | qSOFA | Altered mentation | GCS < 15 (Sepsis-3) | GCS ≤ 13 (Seymour derivation model) |
-| 11 | PERC | SaO2 | positive if < 95% (2008) | 2004 abstract: rule needs > 94%; room-air requirement [U] |
-| 12 | PERC | Surgery/trauma | within 4 weeks requiring hospitalisation (2008 abstract) | requiring general anaesthesia (some sources) |
-| 13 | PERC | Hormone use | exogenous oestrogen | any hormone therapy (2004 abstract: "hormone use") |
-| 14 | Wells | Immobilisation | "> 3 days" (NICE) | "≥ 3 days" (MDCalc) |
-| 15 | Wells | PE-likely item | "alternative diagnosis less likely than PE" (NICE) | "PE #1 or equally likely" (MDCalc) |
-| 16 | Cockcroft-Gault | Weight | actual body weight (original) | ideal / adjusted weight in obesity |
-| 17 | Cockcroft-Gault | Decision thresholds | 30, 60 mL/min (config-overridable) | FDA 2024 Table 1 also has 90 |
-| 18 | Units | Creatinine factor | 88.4 µmol/L per mg/dL | 88.42 (10,000 / 113.12) |
-| 19 | Params | "Stated normal" intervals | see table below | — |
-| 20 | Params | Creatinine can't be "normal" | Present or Unknown only | allow a normal interval |
-| 21 | Cohort | Population priors per calculator | `cohort/priors.py` (rough, independent) | your estimates; correlations (e.g. age and risk factors) |
-| 22 | Cohort | Medication implying a comorbidity | lisinopril → HTN, metformin → DM, atorvastatin → hypercholesterolaemia | other drugs, or ambiguity traps (e.g. metformin for PCOS) |
+**Type:**
+- **S (source):** resolvable by reading the full text of the primary paper. These cluster
+  on the abstract-only [A] sources, PERC and Wells 2000.
+- **C (clinical):** needs clinical judgement.
+- **M (modelling):** a modelling choice with no clinical answer.
+
+**Priority** is face validity: how much a clinician reading a generated case would notice
+if it were wrong.
+- **High:** visible in every case of that calculator.
+- **Med:** visible in some cases.
+- **Low:** internal only.
+
+For a bounds benchmark most items only need to be *fixed and documented*: the ground truth
+is self-consistent either way.
+
+| # | Type | Priority | Calculator | Item | Implemented | Alternatives / notes |
+|---|---|---|---|---|---|---|
+| 1 | S | High | HEART | Troponin bands | ≤ normal / 1–3× / > 3×, deliberately following the validation cohorts (Backus 2010/2013, Poldervaart 2013), not the 2008 table | Six 2008: 1–2× / > 2×. Exactly 3× at the band edge: ≥ 3× (Backus 2011, Poldervaart) vs > 3× (MDCalc) |
+| 27 | C | High | HEART | Troponin assay reference | Troponin is a level relative to the assay's upper reference limit, stated as a ratio in notes | Real hs-troponin uses sex-specific 99th percentiles. Out of scope while troponin is a ratio; needed for real data |
+| 23 | S | High | HEART | Age exactly 65 | 2 points (`age >= 65`), per the 2008 text ("65 years or older") | 2008 table says "≤ 65" (typo); some renderings use 45–65 → 1, > 65 → 2 (65 scores 1) |
+| 2 | S | High | HEART | Age exactly 45 | 1 point (`age >= 45`) | Poldervaart 2013: ≤ 45 → 0 |
+| 4 | C | High | HEART | Smoking recency | boolean "current or recent smoker" | < 1 month (Six 2008) vs ≤ 3 months (MDCalc) |
+| 5 | C | High | HEART | Family history | boolean | 1st-degree relative with CVD < 65 (MDCalc); not defined in primary text |
+| 6 | S | Med | HEART | Obesity | boolean, labelled BMI > 30 | not defined in Six 2008; BMI > 30 in Poldervaart 2013 |
+| 7 | S | Med | HEART | TIA as atherosclerotic disease | included (2 points) | Six 2008 lists revascularisation, MI, stroke, PAD. MedCalc-Bench counts TIA as an ordinary risk factor (1 of 100 anchor disagreements) |
+| 3 | S | Med | HEART | ECG 2 points | significant ST deviation (depression or elevation) | 2008 table: ST depression only |
+| 11 | S | High | PERC | SaO2 | positive if < 95%, on room air (the renderer states "on room air") | 2004 abstract: rule needs > 94%. "Sats normal on 2 L" is normal but PERC-positive in some readings; our notes never render supplemental O2 |
+| 12 | S | Med | PERC | Surgery/trauma | within 4 weeks requiring hospitalisation (2008 abstract) | requiring general anaesthesia (some sources) |
+| 13 | S | Med | PERC | Hormone use | exogenous oestrogen | any hormone therapy (2004 abstract: "hormone use") |
+| 24 | S | Med | Wells | Item definitions | Stated in the parameter labels given to renderer and extractor: malignancy = on treatment, treated within 6 months, or palliative; DVT signs = leg swelling plus pain on deep-vein palpation; previous DVT/PE | Previous DVT/PE should say "objectively diagnosed" (label says "Previous DVT or PE") |
+| 14 | S | Med | Wells | Immobilisation duration | "> 3 days" (NICE) | "≥ 3 days" (MDCalc) |
+| 25 | S | Med | Wells | 4-week window | label: "Immobilisation > 3 days or surgery in the previous 4 weeks" (window read as applying to both) | the window may apply to surgery only |
+| 15 | S | Med | Wells | PE-likely item | "alternative diagnosis less likely than PE" (NICE) | "PE #1 or equally likely" (MDCalc) |
+| 8 | C | Med | CURB-65 | BUN equivalent | code converts BUN to urea mmol/L and applies > 7 (= BUN > 19.6) | MDCalc: BUN > 19; an audit suggests > 20 |
+| 26 | C | High | CURB-65 / qSOFA | How mental status is extracted | Bool params, labelled "Confusion (AMT ≤ 8 or new disorientation)" and "Altered mentation (GCS < 15)". There is no GCS parameter: "GCS 14" → altered mentation present; a vague "drowsy" is left to the extractor's judgement | add a numeric GCS parameter (would change prompts and cohort) |
+| 9 | C | Low | CURB-65 / qSOFA | Confusion vs altered mentation | two separate parameters | Coupling is not needed: each case belongs to exactly one calculator, so one patient never carries both |
+| 10 | C | Med | qSOFA | Altered mentation threshold | GCS < 15 (Sepsis-3) | GCS ≤ 13 (Seymour derivation model) |
+| 16 | C | Med | Cockcroft-Gault | Weight | actual body weight (original) | ideal/adjusted weight in obesity; MedCalc-Bench picks by BMI (explains 49% anchor disagreement) |
+| 17 | M | Low | Cockcroft-Gault | Decision thresholds | 30, 60 mL/min (config-overridable) | FDA 2024 Table 1 also has 90 |
+| 18 | M | Low | Units | Creatinine factor | 88.4 µmol/L per mg/dL | 88.42 (10,000 / 113.12). Clinically irrelevant; can move a boundary case by < 0.03% of CrCl. No case sits that close in our cohort |
+| 19 | M | Med | Params | "Stated normal" intervals | see table below | — |
+| 20 | M | Low | Params | Creatinine can't be "normal" | Present or Unknown only | The no-straddle guarantee is per parameter and threshold. CG thresholds apply to a function of age, weight and creatinine, so no creatinine interval could guarantee a single CrCl band. For CG, bounds return a set of categories whenever an input is uncertain (100 of 200 CG cases are determined from the note by design) |
+| 21 | M | Med | Cohort | Population priors | independent sampling (plus DBP < SBP − 15) | Independence can yield implausible combinations (e.g. established CAD with no risk factors: about 3% of HEART cases; young patients with several comorbidities). It doesn't affect scores (atherosclerotic disease scores 2 regardless), but it lowers face validity. Correlated priors are future work; reported as a limitation |
+| 22 | C | Med | Cohort | Medication implying a comorbidity | Only metformin → diabetes is reasonably specific. Lisinopril → hypertension and atorvastatin → hypercholesterolaemia are weak (ACE inhibitors in HF, post-MI and CKD; statins post-ACS and in diabetes). **Scoring:** for a comorbidity shown only through a medication, both Present and Unknown count as correct; only Absent is an error | treat the implication as probabilistic in the generator |
 
 ## HEART
 
