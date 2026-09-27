@@ -1,9 +1,10 @@
 #!/bin/zsh
 # Regenerate every Paper 1 number, table and figure.
 #
-# From the LLM cache (.cache/llm) this makes no model calls. Without the cache, the same
-# commands re-run the models through the providers in configs/main.yaml (Claude via
-# `claude -p` on a Claude subscription; Qwen3.5-9B via local Ollama) - see README.
+# With a populated LLM cache (.cache/llm; not distributed) this makes no model calls.
+# Without it, the same commands re-run the models through the providers in
+# configs/main.yaml (Claude via `claude -p` on a Claude subscription; Qwen3.5-9B via local
+# Ollama); LLM outputs may differ slightly from the paper's - see README.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 cb() { uv run calc-bounds "$@"; }

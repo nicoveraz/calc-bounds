@@ -46,11 +46,15 @@ uv sync
 uv run pytest                      # 149 tests, including hypothesis property tests of the bounds
 scripts/reproduce_paper.sh         # regenerates every table and figure
 ```
-With the LLM cache (`.cache/llm`) present, no model calls are made. Without it, the same
-commands re-run the models at $0:
+Only the code is released. The synthetic notes, extractions, traces and the LLM response cache
+(`.cache/llm`) are not distributed. Running the script therefore re-queries the models, at $0:
 - **Claude models** run through headless Claude Code (`claude -p`, subscription): notes by
   Sonnet 5, judge and agent Opus 5.5, extractor Haiku 4.5.
 - **Qwen3.5-9B** runs locally through Ollama (`ollama pull qwen3.5:9b`).
+
+The cohort is regenerated exactly from the seed. LLM outputs (notes, extractions, agent turns)
+are not guaranteed to be byte-identical, so re-run numbers can differ slightly from the paper.
+With a populated cache, the same commands make no model calls.
 
 Every run is one YAML config ([`configs/main.yaml`](configs/main.yaml)) with a fixed seed.
 Every model call is cached by a hash of provider, model, prompt and parameters.

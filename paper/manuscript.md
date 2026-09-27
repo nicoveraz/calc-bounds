@@ -148,7 +148,7 @@ For each note we report:
 ### 2.10 Implementation and reproducibility
 **Cost and model access.** All runs used $0 of API spend. Claude models were accessed through a Claude Code subscription, and Qwen ran on a laptop (Apple M1 Pro, 16 GB).
 
-**Reproducibility.** Every model call was cached on disk under a hash of provider, model, prompt and parameters. Every run is driven by one configuration file and a fixed seed, so all tables and figures regenerate from the cache without further model calls (`calc-bounds paper configs/main.yaml`).
+**Reproducibility.** Every run is driven by one configuration file and a fixed seed. Every model call was cached on disk under a hash of provider, model, prompt and parameters, so the author's tables and figures regenerate from that cache without further model calls (`calc-bounds paper configs/main.yaml`). The cache is not released; re-running the pipeline re-queries the same models with the same prompts.
 
 **Code and tests.** The code (Python 3.12, MIT licence; https://github.com/nicoveraz/calc-bounds) has 149 automated tests, including the property tests.
 
@@ -251,12 +251,12 @@ Unknown is not normal. Treating undocumented findings as normal quietly under-tr
 ---
 
 ## Declarations
-- **Data availability.** The synthetic cohort, notes, extractions, traces and all outputs are regenerable from the repository and cache. MedCalc-Bench Verified is available from its authors (CC-BY-SA 4.0). Code: https://github.com/nicoveraz/calc-bounds. **[TO CONFIRM: whether the LLM cache and synthetic notes are released.]**
+- **Data availability.** Only the code is released (see Code availability). The synthetic cohort is regenerated deterministically by the code from the configuration and seed. The synthetic notes, extractions, traces and the LLM response cache are not released; running the code regenerates them with the same prompts, models and seeds, but LLM outputs are not guaranteed to be byte-identical. MedCalc-Bench Verified is available from its authors (CC-BY-SA 4.0).
 - **Code availability.** https://github.com/nicoveraz/calc-bounds (MIT licence).
 - **Funding.** None.
 - **Competing interests.** None.
-- **Use of AI.** LLMs generated the synthetic notes and served as extractors, judge and agent, as described. Code and analysis were developed with AI assistance (Claude Code). **[TO CONFIRM wording against the target journal's policy.]**
-- **Ethics.** Synthetic data, plus published de-identified case reports; no patient data. Ethics review was not required. **[TO CONFIRM for the target venue.]**
+- **Use of AI.** LLMs generated the synthetic notes and served as extractors, judge and agent, as described. Code and analysis were developed with AI assistance (Claude Code).
+- **Ethics.** Synthetic data, plus published de-identified case reports; no patient data. Ethics review was not required.
 
 ## References
 *[To be formatted for the target venue; all verified 2026-09-26.]*
