@@ -150,7 +150,7 @@ For each note we report:
 
 **Reproducibility.** Every model call was cached on disk under a hash of provider, model, prompt and parameters. Every run is driven by one configuration file and a fixed seed, so all tables and figures regenerate from the cache without further model calls (`calc-bounds paper configs/main.yaml`).
 
-**Code and tests.** The code (Python 3.12, MIT licence) has 149 automated tests, including the property tests. **[TO CONFIRM: repository URL.]**
+**Code and tests.** The code (Python 3.12, MIT licence; https://github.com/nicoveraz/calc-bounds) has 149 automated tests, including the property tests.
 
 ## 3. Results
 
@@ -251,8 +251,8 @@ Unknown is not normal. Treating undocumented findings as normal quietly under-tr
 ---
 
 ## Declarations
-- **Data availability.** The synthetic cohort, notes, extractions, traces and all outputs are regenerable from the repository and cache. MedCalc-Bench Verified is available from its authors (CC-BY-SA 4.0). **[TO CONFIRM: repository URL; whether the LLM cache and synthetic notes are released.]**
-- **Code availability.** MIT licence. **[TO CONFIRM: repository URL.]**
+- **Data availability.** The synthetic cohort, notes, extractions, traces and all outputs are regenerable from the repository and cache. MedCalc-Bench Verified is available from its authors (CC-BY-SA 4.0). Code: https://github.com/nicoveraz/calc-bounds. **[TO CONFIRM: whether the LLM cache and synthetic notes are released.]**
+- **Code availability.** https://github.com/nicoveraz/calc-bounds (MIT licence).
 - **Funding.** None.
 - **Competing interests.** **[TO CONFIRM.]**
 - **Use of AI.** LLMs generated the synthetic notes and served as extractors, judge and agent, as described. Code and analysis were developed with AI assistance (Claude Code). **[TO CONFIRM wording against the target journal's policy.]**

@@ -8,4 +8,5 @@ authors:
 version: "0.1.0"
 date-released: "2026-09-27"
 license: MIT
-# TO CONFIRM: repository-code URL, preferred-citation (arXiv ID once available)
+repository-code: "https://github.com/nicoveraz/calc-bounds"
+# TO CONFIRM: preferred-citation (arXiv ID once available)
