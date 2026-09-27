@@ -21,7 +21,7 @@ import pandas as pd
 
 from calc_bounds.cohort import PatientCase
 from calc_bounds.eval import metrics
-from calc_bounds.eval.plots import R_POLICY_STYLE, R_RC, r_axes, r_grays
+from calc_bounds.eval.plots import R_RC
 from calc_bounds.eval.stats import paired_comparison
 from calc_bounds.io import read_jsonl
 from calc_bounds.policies import Trace
@@ -390,122 +390,133 @@ def _save(fig: plt.Figure, out: Path, name: str) -> None:
     plt.close(fig)
 
 
-def fig_tradeoff(tables: dict[str, pd.DataFrame], out: Path) -> None:
-    """Accuracy vs questions, one panel per condition (Haiku extraction), on a shared y-axis so
-    that small differences are not visually exaggerated."""
-    fig, axes = plt.subplots(1, len(tables), figsize=(4.2 * len(tables), 3.8), sharey=True)
-    lows = [100 * t.groupby("policy")["correct"].mean().min() for t in tables.values()]
-    for ax, (title, t) in zip(np.atleast_1d(axes), tables.items(), strict=True):
-        for pol in POLICY_ORDER:
-            g = t[t["policy"] == pol]
-            color, marker = R_POLICY_STYLE[pol]
+CONDITIONS = {  # label -> (table key, marker, filled): circles clean, triangles messy notes
+    "Clean notes, ideal clinician": ("clean/ideal", "o", True),
+    "Messy notes, ideal clinician": ("messy/ideal", "^", True),
+    "Clean notes, noisy clinician": ("clean/noisy", "o", False),
+    "Messy notes, noisy clinician": ("messy/noisy", "^", False),
+}
+
+
+def _dotchart(tables: dict[str, pd.DataFrame], panels, out: Path, name: str) -> None:
+    """Base-R `dotchart` layout: policies as rows, one panel per measure, one symbol per
+    condition (filled: ideal clinician; open: noisy; circle: clean notes; triangle: messy)."""
+    pols = list(reversed(POLICY_ORDER))  # dotchart draws the first row at the top
+    fig, axes = plt.subplots(1, len(panels), figsize=(9, 3.4), sharey=True)
+    for ax, (xlabel, measure, xlim, xticks) in zip(axes, panels, strict=True):
+        for y in range(len(pols)):
+            ax.axhline(y, color="gray", linestyle=":", linewidth=0.7, zorder=0)
+        for label, (key, marker, filled) in CONDITIONS.items():
+            t = tables[key]
+            x = [measure(t[t.policy == p]) for p in pols]
             ax.scatter(
-                g["n_questions"].mean(),
-                100 * g["correct"].mean(),
-                s=45,
-                facecolors="none",
-                edgecolors=color,
-                marker=marker,
-                linewidths=1.2,
-                zorder=3,
-                label=POLICY_NAME[pol],
-            )
-        ax.set_title(title)
-        ax.set_xlabel("Mean questions per case")
-        ax.set_ylabel("Decision-category accuracy (%)")
-        ax.set_xlim(-0.1, 2.3)
-        ymin = 5 * math.floor((min(lows) - 2) / 5)
-        ax.set_ylim(ymin, 101)
-        ax.set_yticks(range(ymin, 101, 5))
-        r_axes(ax)
-    np.atleast_1d(axes)[0].legend(fontsize=7.5, loc="lower right")
-    _save(fig, out, "fig2_accuracy_vs_questions")
-
-
-def fig_safety(tables: dict[str, pd.DataFrame], out: Path) -> None:
-    """Under- and over-triage (conservative fallback) by system and condition."""
-    conds = list(tables)
-    pols = POLICY_ORDER
-    fills = r_grays(len(pols))
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.0), sharey=False)
-    width = 0.8 / len(pols)
-    for ax, col, title in [
-        (axes[0], "under_triage", "Under-triage (lower risk than truth)"),
-        (axes[1], "over_triage", "Over-triage (higher risk than truth)"),
-    ]:
-        for i, pol in enumerate(pols):
-            vals, errs = [], [[], []]
-            for c in conds:
-                g = tables[c][tables[c]["policy"] == pol]
-                k, n = int(g[col].sum()), len(g)
-                lo, hi = wilson(k, n)
-                v = 100 * k / n
-                vals.append(v)
-                errs[0].append(v - 100 * lo)
-                errs[1].append(100 * hi - v)
-            x = np.arange(len(conds)) + (i - (len(pols) - 1) / 2) * width
-            ax.bar(
                 x,
-                vals,
-                width=width,
-                color=fills[i],
-                edgecolor="black",
-                linewidth=0.6,
-                label=POLICY_NAME[pol],
+                range(len(pols)),
+                marker=marker,
+                s=36,
+                linewidths=1.1,
+                edgecolors="black",
+                facecolors="black" if filled else "white",
+                zorder=3,
+                label=label if ax is axes[0] else None,
             )
-            ax.errorbar(x, vals, yerr=errs, fmt="none", ecolor="black", elinewidth=0.7, capsize=2)
-        ax.set_xticks(np.arange(len(conds)), conds, fontsize=8)
-        ax.set_ylabel("Cases (%)")
-        ax.set_ylim(bottom=0)
-        ax.set_title(title)
-        r_axes(ax)
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, fontsize=8, loc="lower center", ncol=len(pols))
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
+        ax.set_xlabel(xlabel)
+        ax.set_xlim(*xlim)
+        ax.set_xticks(xticks)
+        ax.set_ylim(-0.6, len(pols) - 0.4)
+    axes[0].set_yticks(range(len(pols)), [SHORT_NAME[p] for p in pols])
+    for ax in axes[1:]:
+        ax.tick_params(axis="y", length=0)
+    fig.legend(fontsize=8, loc="lower center", ncol=2)
+    fig.tight_layout(rect=(0, 0.13, 1, 1))
     for ext in ("png", "pdf"):
-        fig.savefig(out / f"fig3_safety_triage.{ext}", dpi=300)
+        fig.savefig(out / f"{name}.{ext}", dpi=300)
     plt.close(fig)
 
 
+def fig_tradeoff(tables: dict[str, pd.DataFrame], out: Path) -> None:
+    """Accuracy and questions per case (Haiku extraction, 559 paired cases)."""
+    _dotchart(
+        tables,
+        [
+            (
+                "Decision-category accuracy (%)",
+                lambda g: 100 * g["correct"].mean(),
+                (80, 101),
+                range(80, 101, 5),
+            ),
+            (
+                "Questions per case",
+                lambda g: g["n_questions"].mean(),
+                (0, 2.2),
+                [0, 0.5, 1, 1.5, 2],
+            ),
+        ],
+        out,
+        "fig2_accuracy_vs_questions",
+    )
+
+
+def fig_safety(tables: dict[str, pd.DataFrame], out: Path) -> None:
+    """Under- and over-triage with the higher-risk fallback (Haiku extraction, 559 cases)."""
+    _dotchart(
+        tables,
+        [
+            (
+                "Under-triage (% of cases)",
+                lambda g: 100 * g["under_triage"].mean(),
+                (-0.5, 15),
+                range(0, 16, 5),
+            ),
+            (
+                "Over-triage (% of cases)",
+                lambda g: 100 * g["over_triage"].mean(),
+                (-0.5, 15),
+                range(0, 16, 5),
+            ),
+        ],
+        out,
+        "fig3_safety_triage",
+    )
+
+
 def fig_real_notes(run: Path, out: Path) -> None:
+    """Dot chart: per calculator, share of real case reports whose category the note determines,
+    and share whose category is correct when missing inputs are treated as normal."""
     d = pd.read_csv(run / "anchor" / "haiku__train.csv")
-    order = ["perc", "cockcroft_gault", "curb65", "wells_pe", "heart"]
-    det = [100 * d.loc[d.calculator == c, "tristate_determined"].mean() for c in order]
-    conv = [
-        100 * d.loc[d.calculator == c, "medcalc_convention_category_correct"].mean() for c in order
-    ]
+    order = ["heart", "wells_pe", "curb65", "cockcroft_gault", "perc"]  # bottom to top
+    fig, ax = plt.subplots(figsize=(6.5, 3.0))
+    for y in range(len(order)):
+        ax.axhline(y, color="gray", linestyle=":", linewidth=0.7, zorder=0)
+    for col, label, face in [
+        ("tristate_determined", "Category determined from the note", "black"),
+        ("medcalc_convention_category_correct", "Category correct if missing = normal", "white"),
+    ]:
+        x = [100 * d.loc[d.calculator == c, col].mean() for c in order]
+        ax.scatter(
+            x,
+            range(len(order)),
+            marker="o",
+            s=36,
+            linewidths=1.1,
+            edgecolors="black",
+            facecolors=face,
+            zorder=3,
+            label=label,
+        )
     n = [int((d.calculator == c).sum()) for c in order]
-    dark, light = r_grays(2)
-    fig, ax = plt.subplots(figsize=(7, 3.8))
-    x = np.arange(len(order))
-    ax.bar(
-        x - 0.2,
-        det,
-        width=0.4,
-        color=dark,
-        edgecolor="black",
-        linewidth=0.6,
-        label="Category determined from the note",
+    ax.set_yticks(
+        range(len(order)), [f"{CALC_NAME[c]} (n = {k})" for c, k in zip(order, n, strict=True)]
     )
-    ax.bar(
-        x + 0.2,
-        conv,
-        width=0.4,
-        color=light,
-        edgecolor="black",
-        linewidth=0.6,
-        label="Category correct if missing = normal",
-    )
-    ax.set_xticks(
-        x, [f"{CALC_NAME[c]}\n(n = {k})" for c, k in zip(order, n, strict=True)], fontsize=8
-    )
-    ax.set_ylabel("Real case reports (%)")
-    ax.set_ylim(0, 115)
-    ax.set_yticks(range(0, 101, 20))
-    ax.set_title("Real notes (MedCalc-Bench Verified, training split)")
-    ax.legend(fontsize=8, loc="upper right")
-    r_axes(ax)
-    _save(fig, out, "fig4_real_notes")
+    ax.set_xlim(0, 101)
+    ax.set_xticks(range(0, 101, 20))
+    ax.set_xlabel("Real case reports (%)")
+    ax.set_ylim(-0.6, len(order) - 0.4)
+    fig.legend(fontsize=8, loc="lower center", ncol=2)
+    fig.tight_layout(rect=(0, 0.12, 1, 1))
+    for ext in ("png", "pdf"):
+        fig.savefig(out / f"fig4_real_notes.{ext}", dpi=300)
+    plt.close(fig)
 
 
 def fig_pipeline(out: Path) -> None:
@@ -686,13 +697,7 @@ def build(run: Path, out: Path, calcs: dict) -> dict[str, object]:
 
     matplotlib.rcParams.update(R_RC)
     fig_pipeline(figs)
-    fig_tradeoff(
-        {
-            "Clean notes, ideal clinician (n=559)": fig_tables["clean/ideal"],
-            "Messy notes, noisy clinician (n=559)": fig_tables["messy/noisy"],
-        },
-        figs,
-    )
+    fig_tradeoff(fig_tables, figs)
     fig_safety(fig_tables, figs)
     fig_real_notes(run, figs)
     import shutil
