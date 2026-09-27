@@ -1,6 +1,8 @@
 ---
 title: "Unknown is not normal: separating language-model extraction from rule-based decision logic for clinical risk scores"
 author: "Nicolás Vera Zúñiga — Independent researcher, Chile — nicovera@quetru.cl"
+bibliography: refs.bib
+link-citations: true
 ---
 
 ## Abstract
@@ -32,9 +34,9 @@ author: "Nicolás Vera Zúñiga — Independent researcher, Chile — nicovera@q
 
 ## 1. Introduction
 
-Clinical decision rules and scores (HEART for chest pain, CURB-65 for pneumonia, qSOFA for suspected sepsis, PERC and the Wells criteria for pulmonary embolism, and Cockcroft-Gault for renal dosing) are defined over a small set of inputs with explicit thresholds. What matters clinically is usually not the exact score but its *decision category*: for example, a HEART score of 0–3 is low risk, 4–6 moderate and 7 or more high. Several groups now use LLMs to compute them from clinical text [MedCalc-Bench; MedRaC; MedMCP-Calc]. The standard benchmark, MedCalc-Bench, scores the numeric answer and, like most implementations, treats an input that the note does not mention as absent or normal [MedCalc-Bench].
+Clinical decision rules and scores (HEART for chest pain, CURB-65 for pneumonia, qSOFA for suspected sepsis, PERC and the Wells criteria for pulmonary embolism, and Cockcroft-Gault for renal dosing) are defined over a small set of inputs with explicit thresholds. What matters clinically is usually not the exact score but its *decision category*: for example, a HEART score of 0–3 is low risk, 4–6 moderate and 7 or more high. Several groups now use LLMs to compute them from clinical text [@khandekar2024medcalc; @wang2025scores; @zhu2026medmcpcalc]. The standard benchmark, MedCalc-Bench, scores the numeric answer and, like most implementations, treats an input that the note does not mention as absent or normal [@khandekar2024medcalc].
 
-In emergency practice that convention is not neutral. "No mention of hemoptysis" is not "no hemoptysis", and a score computed as if it were can place a patient in a lower-risk category than their true one. The safe behaviour is to recognise when the documented facts do not determine the decision, and then to ask only for the facts that could change it. Recent work shows that LLMs handle this poorly in both directions: they commit to a score when the category is still undetermined, and they abstain when it is already determined [ClinDet-Bench]. Interactive benchmarks show that models asked to gather information before answering often ask too little or too much [MediQ; AgentClinic; CRAFT-MD].
+In emergency practice that convention is not neutral. "No mention of hemoptysis" is not "no hemoptysis", and a score computed as if it were can place a patient in a lower-risk category than their true one. The safe behaviour is to recognise when the documented facts do not determine the decision, and then to ask only for the facts that could change it. Recent work shows that LLMs handle this poorly in both directions: they commit to a score when the category is still undetermined, and they abstain when it is already determined [@watanabe2026clindet]. Interactive benchmarks show that models asked to gather information before answering often ask too little or too much [@li2024mediq; @schmidgall2024agentclinic; @johri2025craftmd].
 
 We test a simple division of labour. A language model reads the note into typed, three-valued facts: present with value, explicitly absent, or unknown. Each fact carries an exact evidence span and a confidence. Deterministic code then computes the score's possible values over the unknown inputs (its *bounds*), decides whether the decision category is already determined, and, if not, identifies the unknown inputs whose values could change the category. Only those are asked. We compare this design with asking for every missing input, with the same pipeline using a binary schema (missing = normal), and with an end-to-end frontier LLM agent that has a calculator and an ask-the-clinician tool.
 
@@ -47,7 +49,7 @@ We pre-specified four hypotheses:
 ## 2. Methods
 
 ### 2.1 Calculators and decision categories
-Six calculators were implemented as pure functions from their primary sources [HEART; CURB-65; qSOFA/Sepsis-3; PERC; Wells; Cockcroft-Gault]. Decision categories were:
+Six calculators were implemented as pure functions from their primary sources [@six2008heart; @lim2003curb65; @seymour2016qsofa; @singer2016sepsis3; @kline2004perc; @kline2008perc; @wells2000pe; @vanbelle2006christopher; @cockcroft1976creatinine]. Decision categories were:
 - HEART: low 0–3, moderate 4–6, high ≥7.
 - CURB-65: 0–1, 2, and ≥3.
 - qSOFA: positive if ≥2.
@@ -143,7 +145,7 @@ The noise does not depend on question order, so all policies face the same clini
 **Tests.** Proportions have Wilson 95% confidence intervals and mean questions have 2,000-resample bootstrap intervals. Systems were compared on the same cases with exact McNemar tests (accuracy) and Wilcoxon signed-rank tests (questions). P-values were Holm-adjusted within each condition across four pre-specified comparisons (S3 vs S1, S3 vs S2, S3 vs S3-bin, S4 vs S3). Errors were attributed to abstention, extraction, routing (premature commitment), clinician error, or bounds.
 
 ### 2.9 External check on real notes
-We used the MedCalc-Bench Verified release [MedCalc-Bench; label audits: Ye et al.; Krohn-Grimberghe] for the five overlapping calculators (qSOFA is not included). This comprised 100 test notes and a seeded sample of 584 training notes, with duplicates of test notes excluded. These are published, de-identified case reports licensed CC-BY-SA 4.0. They were used under a documented exception to the project's synthetic-only rule and were not redistributed.
+We used the MedCalc-Bench Verified release [@khandekar2024medcalc], with its label audits [@ye2025stewardship; @krohngrimberghe2026audit], for the five overlapping calculators (qSOFA is not included). This comprised 100 test notes and a seeded sample of 584 training notes, with duplicates of test notes excluded. These are published, de-identified case reports licensed CC-BY-SA 4.0. They were used under a documented exception to the project's synthetic-only rule and were not redistributed.
 
 For each note we report:
 - whether our calculator, applied to MedCalc's annotated inputs, reproduces their label;
@@ -230,16 +232,16 @@ A frontier end-to-end agent was a strong baseline. Under ideal conditions it was
 - the model only has to read the note, because the decision logic is in code, so a 9B model running locally matched perfect-extraction accuracy. The agent, by contrast, needs a frontier model at every turn (about 2.5 turns per case).
 
 ### 4.2 Relation to prior work
-ClinDet-Bench [ClinDet-Bench] formalises the same determinacy question over score ranges and shows that LLMs both commit prematurely and over-abstain. Our work adds the question-asking step and a comparison with an agent that can ask. MediQ, AgentClinic and CRAFT-MD [MediQ; AgentClinic; CRAFT-MD] evaluate information-seeking diagnostic dialogue rather than calculators.
+ClinDet-Bench [@watanabe2026clindet] formalises the same determinacy question over score ranges and shows that LLMs both commit prematurely and over-abstain. Our work adds the question-asking step and a comparison with an agent that can ask. MediQ, AgentClinic and CRAFT-MD [@li2024mediq; @schmidgall2024agentclinic; @johri2025craftmd] evaluate information-seeking diagnostic dialogue rather than calculators.
 
-MedCalc-Bench and its audits [MedCalc-Bench; Ye et al.; Krohn-Grimberghe] evaluate one-shot score computation. Our real-note analysis suggests that its missing-equals-normal convention substantially overstates how often a score can safely be computed from the note alone. The design connects to active feature acquisition, selective prediction, and partial evaluation of rules over unknown inputs. Healthcare standards for executable guidelines (CQL, FHIR Clinical Practice Guidelines) would be a natural host for the determinacy check.
+MedCalc-Bench and its audits [@khandekar2024medcalc; @ye2025stewardship; @krohngrimberghe2026audit] evaluate one-shot score computation. Our real-note analysis suggests that its missing-equals-normal convention substantially overstates how often a score can safely be computed from the note alone. The design connects to active feature acquisition, selective prediction, and partial evaluation of rules over unknown inputs. Healthcare standards for executable guidelines (CQL, FHIR Clinical Practice Guidelines) would be a natural host for the determinacy check.
 
 ### 4.3 Limitations
 - **Synthetic notes.** The main cohort's notes were generated and validated by LLMs from the same family as the Claude extractor. An exploratory analysis of 46 cases with notes from both Sonnet and Qwen suggested a small same-family advantage (+3.2 points, 95% CI 0.4–6.4). Synthetic notes are also more complete and cleaner than real ones, as the real-note analysis shows, so absolute accuracies are optimistic. Differences in question counts and safety are the more transferable results.
 - **Simulated clinician.** It follows a simple parametric model and has not been calibrated to real clinicians.
 - **Independent priors.** Patient characteristics were sampled independently (apart from blood pressure), which can produce implausible combinations, such as established coronary disease with no risk factors. It does not change scores, but it lowers the face validity of some cases. We flagged 12 such cases (all HEART: established coronary disease with no risk factors, or age under 40 with three or more risk factors). Excluding them left the results unchanged (Supplementary Table S10).
 - **Model access.** Claude models were accessed through Claude Code's headless mode rather than a bare API. This adds about 1,200 tokens of harness context, and their confidence is self-reported.
-- **Real-note evaluation.** It does not include asking questions, because no real clinician was available to answer. Its labels have known errors [Ye et al.; Krohn-Grimberghe].
+- **Real-note evaluation.** It does not include asking questions, because no real clinician was available to answer. Its labels have known errors [@ye2025stewardship; @krohngrimberghe2026audit].
 - **Calculator readings.** The readings (Supplementary Table S1) and the population priors were reviewed by a single physician, the author, not by an independent panel. Other readings would change some scores, but they apply equally to all strategies.
 - **Near-ceiling accuracy.** Accuracy under ideal conditions leaves little room for differences, and several accuracy comparisons are underpowered.
 
@@ -266,29 +268,9 @@ Unknown is not normal. Treating undocumented findings as normal quietly under-tr
 - **Ethics.** Synthetic data, plus published de-identified case reports; no patient data. Ethics review was not required.
 
 ## References
-*[To be formatted for the target venue; all verified 2026-09-26.]*
 
-- **HEART.** Six AJ, Backus BE, Kelder JC. Chest pain in the emergency room: value of the HEART score. *Neth Heart J.* 2008;16(6):191–196.
-- **CURB-65.** Lim WS, et al. Defining community acquired pneumonia severity on presentation to hospital. *Thorax.* 2003;58(5):377–382.
-- **qSOFA/Sepsis-3.**
-  - Seymour CW, et al. Assessment of clinical criteria for sepsis. *JAMA.* 2016;315(8):762–774.
-  - Singer M, et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). *JAMA.* 2016;315(8):801–810.
-- **PERC.**
-  - Kline JA, et al. Clinical criteria to prevent unnecessary diagnostic testing in emergency department patients with suspected pulmonary embolism. *J Thromb Haemost.* 2004;2(8):1247–1255.
-  - Kline JA, et al. Prospective multicenter evaluation of the pulmonary embolism rule-out criteria. *J Thromb Haemost.* 2008;6(5):772–780.
-- **Wells.**
-  - Wells PS, et al. Derivation of a simple clinical model to categorize patients probability of pulmonary embolism. *Thromb Haemost.* 2000;83(3):416–420.
-  - van Belle A, et al. Effectiveness of managing suspected pulmonary embolism using an algorithm combining clinical probability, D-dimer testing, and computed tomography. *JAMA.* 2006;295(2):172–179.
-- **Cockcroft-Gault.** Cockcroft DW, Gault MH. Prediction of creatinine clearance from serum creatinine. *Nephron.* 1976;16(1):31–41.
-- **MedCalc-Bench.** Khandekar N, et al. MedCalc-Bench: evaluating large language models for medical calculations. NeurIPS Datasets and Benchmarks, 2024. Verified release: huggingface.co/datasets/nsk7153/MedCalc-Bench-Verified.
-- **Ye et al.** Scalable stewardship of an LLM-assisted clinical benchmark with physician oversight. arXiv:2512.19691, 2025–2026.
-- **Krohn-Grimberghe.** arXiv:2603.02222, 2026 (audit of calculator implementations in MedCalc-Bench).
-- **ClinDet-Bench.** Watanabe Y, et al. arXiv:2602.22771, 2026.
-- **MediQ.** Li SS, et al. MediQ: question-asking LLMs and a benchmark for reliable interactive clinical reasoning. NeurIPS 2024.
-- **AgentClinic.** Schmidgall S, et al. AgentClinic: a multimodal agent benchmark to evaluate AI in simulated clinical environments. arXiv:2405.07960.
-- **CRAFT-MD.** Johri S, et al. An evaluation framework for clinical use of large language models in patient interaction tasks. *Nat Med.* 2025.
-- **MedRaC.** From scores to steps. EMNLP 2025.
-- **MedMCP-Calc.** ACL 2026; arXiv:2601.23049.
+::: {#refs}
+:::
 
 ## Figures
 

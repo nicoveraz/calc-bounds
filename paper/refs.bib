@@ -1,0 +1,104 @@
+% References verified 2026-09-27: arXiv entries from their arxiv.org/abs metadata; clinical
+% sources as cited in each calculator module's docstring.
+
+% ===== Calculators (primary sources) =====
+@article{six2008heart,
+  title={Chest pain in the emergency room: value of the {HEART} score},
+  author={Six, A. J. and Backus, B. E. and Kelder, J. C.},
+  journal={Netherlands Heart Journal}, volume={16}, number={6}, pages={191--196}, year={2008}}
+
+@article{lim2003curb65,
+  title={Defining community acquired pneumonia severity on presentation to hospital: an international derivation and validation study},
+  author={Lim, W. S. and van der Eerden, M. M. and Laing, R. and Boersma, W. G. and Karalus, N. and Town, G. I. and Lewis, S. A. and Macfarlane, J. T.},
+  journal={Thorax}, volume={58}, number={5}, pages={377--382}, year={2003}}
+
+@article{seymour2016qsofa,
+  title={Assessment of clinical criteria for sepsis: for the {Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3)}},
+  author={Seymour, Christopher W. and others},
+  journal={JAMA}, volume={315}, number={8}, pages={762--774}, year={2016}}
+
+@article{singer2016sepsis3,
+  title={The {Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3)}},
+  author={Singer, Mervyn and others},
+  journal={JAMA}, volume={315}, number={8}, pages={801--810}, year={2016}}
+
+@article{kline2004perc,
+  title={Clinical criteria to prevent unnecessary diagnostic testing in emergency department patients with suspected pulmonary embolism},
+  author={Kline, J. A. and others},
+  journal={Journal of Thrombosis and Haemostasis}, volume={2}, number={8}, pages={1247--1255}, year={2004}}
+
+@article{kline2008perc,
+  title={Prospective multicenter evaluation of the pulmonary embolism rule-out criteria},
+  author={Kline, J. A. and others},
+  journal={Journal of Thrombosis and Haemostasis}, volume={6}, number={5}, pages={772--780}, year={2008}}
+
+@article{wells2000pe,
+  title={Derivation of a simple clinical model to categorize patients probability of pulmonary embolism: increasing the models utility with the {SimpliRED} {D}-dimer},
+  author={Wells, P. S. and others},
+  journal={Thrombosis and Haemostasis}, volume={83}, number={3}, pages={416--420}, year={2000}}
+
+@article{vanbelle2006christopher,
+  title={Effectiveness of managing suspected pulmonary embolism using an algorithm combining clinical probability, {D}-dimer testing, and computed tomography},
+  author={{van Belle}, A. and others},
+  journal={JAMA}, volume={295}, number={2}, pages={172--179}, year={2006}}
+
+@article{cockcroft1976creatinine,
+  title={Prediction of creatinine clearance from serum creatinine},
+  author={Cockcroft, D. W. and Gault, M. H.},
+  journal={Nephron}, volume={16}, number={1}, pages={31--41}, year={1976}}
+
+% ===== Medical calculation with LLMs =====
+@inproceedings{khandekar2024medcalc,
+  title={{MedCalc-Bench}: Evaluating Large Language Models for Medical Calculations},
+  author={Khandekar, Nikhil and Jin, Qiao and Xiong, Guangzhi and others},
+  booktitle={Advances in Neural Information Processing Systems (Datasets and Benchmarks Track)},
+  year={2024}, eprint={2406.12036}, archivePrefix={arXiv},
+  note={Verified release: \url{https://huggingface.co/datasets/nsk7153/MedCalc-Bench-Verified}}}
+
+@misc{ye2025stewardship,
+  title={Scalable Stewardship of an {LLM}-Assisted Clinical Benchmark with Physician Oversight},
+  author={Ye, Junze and Tawfik, Daniel and Goodell, Alex J. and Kotha, Nikhil V. and others},
+  year={2025}, eprint={2512.19691}, archivePrefix={arXiv}, primaryClass={cs.CL},
+  howpublished={arXiv:2512.19691}}
+
+@misc{krohngrimberghe2026audit,
+  title={{MedCalc-Bench} Doesn't Measure What You Think: A Benchmark Audit and the Case for Open-Book Evaluation},
+  author={Krohn-Grimberghe, Artus},
+  year={2026}, eprint={2603.02222}, archivePrefix={arXiv},
+  howpublished={arXiv:2603.02222}}
+
+@inproceedings{wang2025scores,
+  title={From Scores to Steps: Diagnosing and Improving {LLM} Performance in Evidence-Based Medical Calculations},
+  author={Wang, Benlu and Xia, Iris and Zhang, Yifan and Wang, Junda and Ouyang, Feiyun and Han, Shuo and Cohan, Arman and Yu, Hong and Yao, Zonghai},
+  booktitle={Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing},
+  year={2025}, eprint={2509.16584}, archivePrefix={arXiv}}
+
+@misc{zhu2026medmcpcalc,
+  title={{MedMCP-Calc}: Benchmarking {LLMs} for Realistic Medical Calculator Scenarios via {MCP} Integration},
+  author={Zhu, Yakun and Huang, Yutong and Qin, Shengqian and Huang, Zhongzhen and others},
+  year={2026}, eprint={2601.23049}, archivePrefix={arXiv},
+  howpublished={arXiv:2601.23049}}
+
+@misc{watanabe2026clindet,
+  title={{ClinDet-Bench}: Beyond Abstention, Evaluating Judgment Determinability of {LLMs} in Clinical Decision-Making},
+  author={Watanabe, Yusuke and Kobashi, Yohei and Kojima, Takeshi and Iwasawa, Yusuke and others},
+  year={2026}, eprint={2602.22771}, archivePrefix={arXiv},
+  howpublished={arXiv:2602.22771}}
+
+% ===== Interactive information seeking =====
+@inproceedings{li2024mediq,
+  title={{MediQ}: Question-Asking {LLMs} and a Benchmark for Reliable Interactive Clinical Reasoning},
+  author={Li, Shuyue Stella and Balachandran, Vidhisha and Feng, Shangbin and Ilgen, Jonathan S. and others},
+  booktitle={Advances in Neural Information Processing Systems},
+  year={2024}, eprint={2406.00922}, archivePrefix={arXiv}}
+
+@misc{schmidgall2024agentclinic,
+  title={{AgentClinic}: a multimodal agent benchmark to evaluate {AI} in simulated clinical environments},
+  author={Schmidgall, Samuel and Ziaei, Rojin and Harris, Carl and Reis, Eduardo and others},
+  year={2024}, eprint={2405.07960}, archivePrefix={arXiv},
+  howpublished={arXiv:2405.07960}}
+
+@article{johri2025craftmd,
+  title={An evaluation framework for clinical use of large language models in patient interaction tasks},
+  author={Johri, Shreya and others},
+  journal={Nature Medicine}, year={2025}, doi={10.1038/s41591-024-03328-5}}

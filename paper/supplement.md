@@ -2,7 +2,7 @@
 title: "Supplementary material — Unknown is not normal"
 ---
 
-## S1. Calculator readings awaiting clinical review
+## S1. Calculator readings and clinical review
 
 Each calculator cites its primary source in code. Where the source was ambiguous or differed from common implementations, the implemented reading and the alternatives are listed below. The author, an emergency physician, reviewed and accepted the implemented readings.
 

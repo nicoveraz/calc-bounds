@@ -9,8 +9,8 @@ mkdir -p build
 # arXiv: one document = manuscript + supplement as an appendix.
 {
   cat manuscript.md
-  printf '\n\n\\clearpage\n\\appendix\n\n# Supplementary material\n\n'
-  sed '1,/^---$/{/^---$/!d;};1,/^---$/d' supplement.md | sed 's/^## /## /'
+  printf '\n\n\\clearpage\n\\appendix\n\n## Supplementary material\n\n'
+  sed '1,/^---$/{/^---$/!d;};1,/^---$/d' supplement.md | sed 's/^## /### /'
 } > arxiv.md
 for doc in manuscript supplement arxiv; do
   python3 - "$doc" <<'PY'
@@ -45,22 +45,68 @@ for line in lines:
         fixed.append("")
     fixed.append(line)
 out = "\n".join(fixed)
+# Pipe-table column widths: pandoc makes wide tables' columns proportional to the dashes in the
+# separator row, which are all equal in our tables. Set them from the content instead.
+def widths(block):
+    rows = [[c.strip() for c in l.strip().strip("|").split("|")] for l in block]
+    n = len(rows[0])
+    body = [r for i, r in enumerate(rows) if i != 1 and len(r) == n]
+    w = []
+    for j in range(n):
+        longest = max(len(r[j]) for r in body)
+        words = max(len(x) for r in body for x in r[j].split() or [""])
+        w.append(max(words, min(longest, 40), 4))
+    return "|" + "|".join("-" * x for x in w) + "|"
+lines, res, i = out.split("\n"), [], 0
+while i < len(lines):
+    if lines[i].startswith("|") and i + 1 < len(lines) and re.match(r"^\|(\s*:?-+:?\s*\|)+\s*$", lines[i + 1]):
+        j = i
+        while j < len(lines) and lines[j].startswith("|"):
+            j += 1
+        block = lines[i:j]
+        block[1] = widths(block)
+        res += block
+        i = j
+    else:
+        res.append(lines[i])
+        i += 1
+out = "\n".join(res)
 Path(f"build/{doc}.md").write_text(out)
 PY
-  pandoc "build/$doc.md" -o "$doc.pdf" --pdf-engine=tectonic \
+  [ "$doc" = arxiv ] && continue  # built below from the arXiv package itself
+  pandoc "build/$doc.md" -o "$doc.pdf" --pdf-engine=tectonic --citeproc \
     -V geometry:margin=1.8cm -V fontsize=9pt -V linestretch=1.1 -V colorlinks=true \
     -V mainfont="Helvetica" -V monofont="Menlo" --resource-path=.:figures:build \
     2> "build/$doc.log" || { tail -20 "build/$doc.log"; exit 1; }
-  pandoc "build/$doc.md" -s -o "build/$doc.tex" --resource-path=.:figures:build
-  echo "built paper/$doc.pdf (+ build/$doc.tex for arXiv)"
+  echo "built paper/$doc.pdf"
 done
 
-# arXiv source package: tex + figures, flat paths.
+# arXiv source package, in the format of the author's earlier arXiv papers: article 11pt, 1in
+# margins, natbib + plainnat, and a tarball of main.tex, main.bbl, refs.bib and figures/.
+# arXiv does not reliably run BibTeX, so main.bbl ships; refs.bib ships too, or \cite keys can
+# resolve to [?]. The package is verified by building it from its own contents.
 rm -rf build/arxiv && mkdir -p build/arxiv/figures
-# arXiv compiles with pdfLaTeX: declare the non-ASCII symbols we use (no-op under XeTeX).
+pandoc build/arxiv.md -s --natbib --shift-heading-level-by=-1 -o build/arxiv/main.tex \
+  -V documentclass=article -V fontsize=11pt -V geometry:margin=1in -V colorlinks=true \
+  -V linkcolor=blue -V citecolor=blue -V urlcolor=blue
 python3 - <<'PY'
+import re
 from pathlib import Path
-tex = Path("build/arxiv.tex").read_text(encoding="utf8")
+path = Path("build/arxiv/main.tex")
+tex = path.read_text(encoding="utf8")
+# Author block as in the earlier papers.
+tex = re.sub(r"\\author\{.*?\}\n", lambda m: "\\author{Nicol\\'as Vera Z\\'u\\~niga\\\\\nIndependent Researcher, Chile\\\\\n\\texttt{nicovera@quetru.cl}}\n\\date{}\n", tex, count=1, flags=re.S)
+# Abstract section -> abstract environment (ends at the plain-language summary).
+m = re.search(r"\\section\{Abstract\}\\label\{abstract\}\n(.*?)(\n\\textbf\{Plain-language summary\.\})", tex, flags=re.S)
+tex = tex[: m.start()] + "\\begin{abstract}\n" + m.group(1).strip() + "\n\\end{abstract}\n" + tex[m.start(2):]
+# Drop horizontal rules from the Markdown '---' separators.
+tex = re.sub(r"\\begin\{center\}\\rule\{0\.5\\linewidth\}\{0\.5pt\}\\end\{center\}\n", "", tex)
+# Bibliography where the References heading is (natbib prints its own heading).
+tex = re.sub(r"\\section\{References\}\\label\{references\}\n", "\\\\bibliographystyle{plainnat}\n\\\\bibliography{refs}\n", tex, count=1)
+tex = re.sub(r"\n\\bibliography\{refs\.bib\}\n", "\n", tex)
+tex = re.sub(r"\\begin\{CSLReferences\}.*?\\end\{CSLReferences\}\n", "", tex, flags=re.S)
+tex = re.sub(r"\\hypertarget\{refs\}\{\}\n", "", tex)
+# arXiv compiles with pdfLaTeX: declare the non-ASCII symbols we use (no-op under XeTeX).
 decl = r"""\ifPDFTeX
 \DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
 \DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
@@ -73,8 +119,27 @@ decl = r"""\ifPDFTeX
 \fi
 """
 tex = tex.replace("\\begin{document}", decl + "\\begin{document}", 1)
-Path("build/arxiv/main.tex").write_text(tex, encoding="utf8")
+# Tables in a smaller font with tighter columns.
+tex = re.sub(r"(\\begin\{longtable\}.*?\\end\{longtable\})", lambda m: "{\\footnotesize\\setlength{\\tabcolsep}{3pt}\n" + m.group(1) + "\n}", tex, flags=re.S)
+path.write_text(tex, encoding="utf8")
 PY
+cp refs.bib build/arxiv/
 cp figures/*.pdf figures/figS5_reliability.png build/arxiv/figures/
-(cd build/arxiv && zip -qr ../../arxiv_source.zip .)
-echo "built paper/arxiv_source.zip (upload to arXiv) and paper/arxiv.pdf (what it should look like)"
+(cd build/arxiv && tectonic -X compile main.tex --keep-intermediates >/dev/null 2>&1)
+[ -f build/arxiv/main.bbl ] || { echo "FAIL: main.bbl was not produced"; exit 1; }
+rm -f arxiv_source.zip
+(cd build/arxiv && tar czf ../../arxiv-submission.tar.gz main.tex main.bbl refs.bib figures/)
+
+# VERIFY: build from the tarball alone, then check the output, not just the exit status.
+rm -rf build/verify && mkdir -p build/verify
+tar xzf arxiv-submission.tar.gz -C build/verify
+(cd build/verify && tectonic -X compile main.tex --keep-logs >/dev/null 2>&1)
+cp build/verify/main.pdf arxiv.pdf
+bad=$(grep -icE "undefined (citation|reference)" build/verify/main.log || true)
+marks=$(pdftotext arxiv.pdf - 2>/dev/null | grep -c '\[?\]' || true)
+pages=$(pdfinfo arxiv.pdf | awk '/^Pages/{print $2}')
+echo "  package : paper/arxiv-submission.tar.gz ($pages pages)"
+echo "  undefined citations/references : $bad  (must be 0)"
+echo "  literal [?] markers in the PDF : $marks  (must be 0)"
+[ "$bad" -eq 0 ] && [ "$marks" -eq 0 ] || { echo "  FAIL -- do not upload."; exit 1; }
+echo "  OK -- verified from the tarball's own contents."
