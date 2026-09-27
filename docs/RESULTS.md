@@ -115,6 +115,88 @@ a small question cost. Echo threshold sweep (`s4_echo_threshold_sweep.csv`):
 - **Fewer questions overall.** Even with echo questions included, S4 asks fewer questions
   than S3 thanks to VOI ordering (Wilcoxon p < 0.01).
 
+## Harder conditions: noisy clinician, messy notes (added 2026-09-27)
+**Noisy clinician.** Per question, the clinician:
+- doesn't know 10% of the time;
+- answers wrongly 5% of the time (a flipped yes/no, a graded item one level off, or a number
+  off by 10–25%);
+- answers a number as a ±10% range 25% of the time.
+
+**Messy notes.** 600 cases (100 per calculator) re-rendered from the same fact sheets in an
+end-of-shift style: fragments, abbreviations, typos, copied-forward text, no headings. Of
+these, 41 still failed validation after 3 attempts and are excluded, leaving 559.
+
+**Conservative fallback.** An undecided case gets the highest-risk category still possible
+(for S2, which doesn't track bounds: the calculator's highest-risk category).
+- **Under-triage:** the decision is lower-risk than the truth. This is the dangerous error.
+- **Over-triage:** the decision is higher-risk than the truth.
+
+Key rows below. The full grid is in `runs/main/report/summary_all.csv`. Note sets differ in
+size (1,200 clean vs 559 messy), so compare within a row group.
+
+| Condition | System | Accuracy | Correct when answering | Under-triage | Over-triage | Premature | Questions/case |
+|---|---|---|---|---|---|---|---|
+| Clean, ideal (Haiku) | S3 | 99.4% | 99.5% | 0.1% | 0.5% | 0% | 0.92 |
+| | S2 Opus | 99.6% | 99.7% | 0.1% | 0.3% | 0.2% | 0.99 |
+| | S3-bin | 91.2% | 91.2% | **8.5%** | 0.3% | 40% | 0.21 |
+| Clean, noisy (Haiku) | S3 | 87.0% | 97.6% | 0.3% | 9.8% | 0% | 0.96 |
+| | S4 | 87.2% | 97.8% | 0.3% | 9.6% | 0% | 0.94 |
+| | S2 Opus | 83.5% | 97.2% | 0.5% | 13.8% | 2.7% | 1.03 |
+| | S3-bin | 88.0% | 90.9% | **8.4%** | 2.8% | 39% | 0.21 |
+| Messy, ideal (Haiku) | S3 | 98.6% | 98.7% | 0.5% | 0.9% | 0% | 1.04 |
+| | S4 | 99.1% | 99.3% | 0.5% | 0.4% | 0% | 1.04 |
+| | S2 Opus | 99.8% | 100% | 0.0% | 0.2% | 0.7% | 0.92 |
+| | S3-bin | 90.7% | 90.7% | **8.8%** | 0.5% | 39% | 0.30 |
+| Messy, ideal (Qwen 9B) | S3 | 99.5% | 99.6% | 0.2% | 0.4% | 0% | 1.17 |
+| Messy, noisy (Haiku) | S3 | 85.5% | 96.8% | 0.5% | 11.1% | 0% | 1.08 |
+| | S2 Opus | 85.0% | 97.3% | 1.1% | 12.0% | 3.4% | 0.97 |
+| | S3-bin | 86.8% | 90.3% | **8.6%** | 3.8% | 38% | 0.31 |
+
+**Findings**
+1. **Assuming missing means normal under-triages about 1 in 12 patients in every
+   condition** (8.2–10.2%), including a perfect clinician and clean notes. Headline
+   accuracy hides this: under noise S3-bin's accuracy (86–88%) matches S3's because it
+   rarely asks, but when it answers it is wrong about 10% of the time and commits
+   prematurely in about 40% of cases.
+2. **The bounds policies essentially never under-triage** (0–0.5%, and only after the
+   clinician gives a wrong answer). When information is truly unavailable they fall back to
+   the higher-risk category (about 10–13% over-triage under noise), which is the safe
+   direction.
+3. **The noisy clinician costs every system about 12–15 accuracy points, mostly through
+   abstention.** A "don't know" to the one decisive question leaves the category open.
+   When they do commit, S3, S4 and S2 are 97–98% correct.
+4. **Messy notes hurt Haiku extraction a little and Qwen barely.**
+   - Haiku under S3 drops from 99.4% to 98.6%, and its silent missing→absent rate doubles to
+     0.045 per case. S4's confidence echo recovers part of this (99.1%).
+   - Qwen stays at 99.5%.
+5. **The Opus agent reading the raw notes is a strong baseline.**
+   - On messy notes with the ideal clinician it beats S3 with Haiku extraction (99.8% vs
+     98.6%, McNemar p = 0.016) and ties S3 with Qwen extraction.
+   - Under noise it ties S3 on messy notes and falls behind on clean notes (83.5% vs 87.0%,
+     p < 0.001).
+   - It always has more premature commitment (0.2–3.4% vs 0%) and more irrelevant questions
+     (about 10% vs 0%).
+   - **Revised H2:** a frontier agent is competitive on accuracy. The bounds approach wins on
+     safety properties: it never commits prematurely, never asks an irrelevant question,
+     and has the lowest under-triage. It also wins on cost and determinism, and it works
+     with a 9B local model.
+
+## Real clinical notes (MedCalc-Bench training split, 584 case reports; see ANCHOR.md)
+| Calculator | Our code reproduces their label | Note alone settles the category | Category correct if missing = normal |
+|---|---|---|---|
+| PERC | 100% | 88–90% | 91–94% |
+| Cockcroft-Gault | 51% (weight-rule difference) | 85–88% | 71–72% |
+| CURB-65 | 100% | 41–49% | 81–82% |
+| Wells | 100% | 10–19% | 78–81% |
+| HEART | 100% | 12–13% | 9–22% |
+| All | 90% | 47–52% | 65–69% |
+
+- **Real notes usually don't contain enough to settle the score.** For HEART and Wells that
+  holds for about 85% of notes. Assuming missing = normal gets the category right for only
+  65–69% of notes overall, and 9–22% for HEART.
+- **The bounds keep the true category possible for 93–95% of notes.** The misses come from
+  extraction errors, mainly HEART entities (entity agreement 73–74%).
+
 ## Extraction and calibration
 - **Claim accuracy:** 99.6% for Haiku and 99.5% for Qwen.
 - **Qwen's misses are safe.** It reads only 83% of documented negatives, but a miss becomes
@@ -153,6 +235,10 @@ a small question cost. Echo threshold sweep (`s4_echo_threshold_sweep.csv`):
   for only 31% of cases). Treat this as a limitation, not a finding.
 
 ## Limitations
+- **Noise model.** The clinician noise is a simple parametric model, not calibrated to
+  real clinicians.
+- **Messy notes are a subset.** They cover 559 cases rather than the full cohort, and the
+  41 notes that failed validation are excluded.
 - **Clean notes.** The notes are synthetic and validated to be faithful, so extraction is
   easier than on real notes. The anchor shows real notes are far less complete.
 - **Near-ceiling accuracy.** Accuracy differences are therefore small and many comparisons
