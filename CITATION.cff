@@ -4,7 +4,8 @@ title: "calc-bounds: separating LLM extraction from rule-based decision logic fo
 authors:
   - family-names: "Vera Zúñiga"
     given-names: "Nicolás"
-    # TO CONFIRM: affiliation, ORCID
+    affiliation: "Independent researcher, Chile"
 version: "0.1.0"
 date-released: "2026-09-27"
-# TO CONFIRM: license, repository-code URL, preferred-citation (paper DOI once available)
+license: MIT
+# TO CONFIRM: repository-code URL, preferred-citation (arXiv ID once available)

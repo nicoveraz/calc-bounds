@@ -3,6 +3,7 @@ name = "calc-bounds"
 version = "0.1.0"
 description = "Model extracts tri-state clinical parameters; code computes scores and decision-relevant questions via score bounds."
 readme = "README.md"
+license = "MIT"
 authors = [
     { name = "Nicolás Vera Zúñiga", email = "nicovera@quetru.cl" }
 ]

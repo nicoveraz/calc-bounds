@@ -74,4 +74,4 @@ scripts/           reproduce_paper.sh
 ```
 
 ## License and citation
-License: **TO CONFIRM**. Citation: see [`CITATION.cff`](CITATION.cff).
+Code: [MIT](LICENSE). Citation: see [`CITATION.cff`](CITATION.cff). MedCalc-Bench data is not included (CC-BY-SA 4.0; see `docs/ANCHOR.md`).
