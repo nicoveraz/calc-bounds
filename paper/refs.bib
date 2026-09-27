@@ -1,5 +1,6 @@
-% References verified 2026-09-27: arXiv entries from their arxiv.org/abs metadata; clinical
-% sources as cited in each calculator module's docstring.
+% References verified 2026-09-27: clinical sources against PubMed (PMIDs in the calculator
+% docstrings); CRAFT-MD against Crossref; ACL/EMNLP papers against the ACL Anthology .bib;
+% arXiv-only entries against their arxiv.org/abs metadata.
 
 % ===== Calculators (primary sources) =====
 @article{six2008heart,
@@ -71,19 +72,19 @@
   title={From Scores to Steps: Diagnosing and Improving {LLM} Performance in Evidence-Based Medical Calculations},
   author={Wang, Benlu and Xia, Iris and Zhang, Yifan and Wang, Junda and Ouyang, Feiyun and Han, Shuo and Cohan, Arman and Yu, Hong and Yao, Zonghai},
   booktitle={Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing},
-  year={2025}, eprint={2509.16584}, archivePrefix={arXiv}}
+  pages={10809--10833}, year={2025}, doi={10.18653/v1/2025.emnlp-main.548}}
 
-@misc{zhu2026medmcpcalc,
+@inproceedings{zhu2026medmcpcalc,
   title={{MedMCP-Calc}: Benchmarking {LLMs} for Realistic Medical Calculator Scenarios via {MCP} Integration},
-  author={Zhu, Yakun and Huang, Yutong and Qin, Shengqian and Huang, Zhongzhen and others},
-  year={2026}, eprint={2601.23049}, archivePrefix={arXiv},
-  howpublished={arXiv:2601.23049}}
+  author={Zhu, Yakun and Huang, Yutong and Qin, Shengqian and Huang, Zhongzhen and Zhang, Shaoting and Zhang, Xiaofan},
+  booktitle={Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  pages={4845--4873}, year={2026}, doi={10.18653/v1/2026.acl-long.221}}
 
-@misc{watanabe2026clindet,
+@inproceedings{watanabe2026clindet,
   title={{ClinDet-Bench}: Beyond Abstention, Evaluating Judgment Determinability of {LLMs} in Clinical Decision-Making},
-  author={Watanabe, Yusuke and Kobashi, Yohei and Kojima, Takeshi and Iwasawa, Yusuke and others},
-  year={2026}, eprint={2602.22771}, archivePrefix={arXiv},
-  howpublished={arXiv:2602.22771}}
+  author={Watanabe, Yusuke and Kobashi, Yohei and Kojima, Takeshi and Iwasawa, Yusuke and Okuno, Yasushi and Matsuo, Yutaka},
+  booktitle={Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 6: Industry Track)},
+  pages={681--703}, year={2026}, doi={10.18653/v1/2026.acl-industry.47}}
 
 % ===== Interactive information seeking =====
 @inproceedings{li2024mediq,
@@ -101,4 +102,40 @@
 @article{johri2025craftmd,
   title={An evaluation framework for clinical use of large language models in patient interaction tasks},
   author={Johri, Shreya and others},
-  journal={Nature Medicine}, year={2025}, doi={10.1038/s41591-024-03328-5}}
+  journal={Nature Medicine}, volume={31}, number={1}, pages={77--86}, year={2025}, doi={10.1038/s41591-024-03328-5}}
+
+% ===== Methods =====
+@inproceedings{guo2017calibration,
+  title={On Calibration of Modern Neural Networks},
+  author={Guo, Chuan and Pleiss, Geoff and Sun, Yu and Weinberger, Kilian Q.},
+  booktitle={Proceedings of the 34th International Conference on Machine Learning},
+  series={PMLR}, volume={70}, pages={1321--1330}, year={2017}}
+
+@inproceedings{zadrozny2002isotonic,
+  title={Transforming classifier scores into accurate multiclass probability estimates},
+  author={Zadrozny, Bianca and Elkan, Charles},
+  booktitle={Proceedings of the Eighth ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  pages={694--699}, year={2002}, doi={10.1145/775047.775151}}
+
+@article{wilson1927probable,
+  title={Probable inference, the law of succession, and statistical inference},
+  author={Wilson, Edwin B.},
+  journal={Journal of the American Statistical Association}, volume={22}, number={158},
+  pages={209--212}, year={1927}, doi={10.1080/01621459.1927.10502953}}
+
+@article{mcnemar1947note,
+  title={Note on the sampling error of the difference between correlated proportions or percentages},
+  author={McNemar, Quinn},
+  journal={Psychometrika}, volume={12}, number={2}, pages={153--157}, year={1947},
+  doi={10.1007/BF02295996}}
+
+@article{holm1979simple,
+  title={A simple sequentially rejective multiple test procedure},
+  author={Holm, Sture},
+  journal={Scandinavian Journal of Statistics}, volume={6}, number={2}, pages={65--70}, year={1979}}
+
+@article{maciver2019hypothesis,
+  title={Hypothesis: A new approach to property-based testing},
+  author={MacIver, David R. and Hatfield-Dodds, Zac and {many other contributors}},
+  journal={Journal of Open Source Software}, volume={4}, number={43}, pages={1891}, year={2019},
+  doi={10.21105/joss.01891}}

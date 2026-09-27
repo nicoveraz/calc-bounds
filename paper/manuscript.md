@@ -38,7 +38,9 @@ Clinical decision rules and scores (HEART for chest pain, CURB-65 for pneumonia,
 
 In emergency practice that convention is not neutral. "No mention of hemoptysis" is not "no hemoptysis", and a score computed as if it were can place a patient in a lower-risk category than their true one. The safe behaviour is to recognise when the documented facts do not determine the decision, and then to ask only for the facts that could change it. Recent work shows that LLMs handle this poorly in both directions: they commit to a score when the category is still undetermined, and they abstain when it is already determined [@watanabe2026clindet]. Interactive benchmarks show that models asked to gather information before answering often ask too little or too much [@li2024mediq; @schmidgall2024agentclinic; @johri2025craftmd].
 
-We test a simple division of labour. A language model reads the note into typed, three-valued facts: present with value, explicitly absent, or unknown. Each fact carries an exact evidence span and a confidence. Deterministic code then computes the score's possible values over the unknown inputs (its *bounds*), decides whether the decision category is already determined, and, if not, identifies the unknown inputs whose values could change the category. Only those are asked. We compare this design with asking for every missing input, with the same pipeline using a binary schema (missing = normal), and with an end-to-end frontier LLM agent that has a calculator and an ask-the-clinician tool.
+We test a simple division of labour (Figure 1). A language model reads the note into typed, three-valued facts: present with value, explicitly absent, or unknown. Each fact carries an exact evidence span and a confidence. Deterministic code then computes the score's possible values over the unknown inputs (its *bounds*), decides whether the decision category is already determined, and, if not, identifies the unknown inputs whose values could change the category. Only those are asked. We compare this design with asking for every missing input, with the same pipeline using a binary schema (missing = normal), and with an end-to-end frontier LLM agent that has a calculator and an ask-the-clinician tool.
+
+![Pipeline. A language model reads the note into typed tri-state facts (present / absent / unknown, with an exact evidence span and a confidence). Code normalizes units, computes the score's bounds over unknown inputs and, if the decision category is not determined, asks the clinician only for inputs that could change it; each answer updates the bounds.](figures/fig1_pipeline.pdf)
 
 We pre-specified four hypotheses:
 - **H1.** The bounds policy asks far fewer questions than ask-all without losing accuracy.
@@ -68,7 +70,7 @@ Given a partial assignment (known values, intervals for inputs documented as "no
 
 For example, suppose a HEART patient scores 2 points on the documented inputs and troponin (0–2 points) is unknown. The possible scores are 2–4, spanning low (0–3) and moderate (4–6) risk, so the category is undetermined and troponin is decision-relevant. Had the documented inputs scored 0, the possible scores would be 0–2, all low risk, and no question would be needed.
 
-Property-based tests with Hypothesis checked, for every calculator, that every completion of a partial assignment falls within the computed bounds, and that inputs labelled irrelevant never change the category.
+Property-based tests with Hypothesis [@maciver2019hypothesis] checked, for every calculator, that every completion of a partial assignment falls within the computed bounds, and that inputs labelled irrelevant never change the category.
 
 ### 2.3 Synthetic cohort
 For each calculator we sampled hidden patient truth from plausible emergency-department priors (Supplementary Table S2). The author reviewed the priors. Each input was then marked documented positive, documented negative or normal, or not documented, with 30% missingness per input; systolic and diastolic blood pressure were documented together.
@@ -110,7 +112,7 @@ Notes that failed were regenerated up to twice (22 of 1,200 needed one retry, an
 - Claude Haiku 4.5, accessed through headless Claude Code (`claude -p`) with a replaced system prompt, all tools disabled and JSON-schema-constrained output. Confidence was self-reported.
 - Qwen3.5-9B (4-bit quantised), run locally through Ollama with a JSON schema, thinking disabled, temperature 0, and a fixed seed. Confidence was taken from token log-probabilities as P(status tokens) × P(value tokens).
 
-**Calibration.** Temperature scaling and isotonic regression were fitted on a seeded 30% development split per calculator and evaluated on the remainder. S4 used isotonic calibration.
+**Calibration.** Temperature scaling [@guo2017calibration] and isotonic regression [@zadrozny2002isotonic] were fitted on a seeded 30% development split per calculator and evaluated on the remainder. S4 used isotonic calibration.
 
 ### 2.6 Policies
 We compared five strategies, labelled S1–S4 and S3-bin in the tables:
@@ -142,7 +144,7 @@ The noise does not depend on question order, so all policies face the same clini
 - extraction accuracy by documented state. A comorbidity conveyed only through a medication (e.g. lisinopril, never naming hypertension) is not determined by the note, so both "present" and "unknown" are accepted there, and "absent" is an error. For the same reason, the reference knowledge used to judge the agent's questions and premature commitment treats such comorbidities as unknown;
 - calibration (Brier score, expected calibration error).
 
-**Tests.** Proportions have Wilson 95% confidence intervals and mean questions have 2,000-resample bootstrap intervals. Systems were compared on the same cases with exact McNemar tests (accuracy) and Wilcoxon signed-rank tests (questions). P-values were Holm-adjusted within each condition across four pre-specified comparisons (S3 vs S1, S3 vs S2, S3 vs S3-bin, S4 vs S3). Errors were attributed to abstention, extraction, routing (premature commitment), clinician error, or bounds.
+**Tests.** Proportions have Wilson 95% confidence intervals [@wilson1927probable] and mean questions have 2,000-resample bootstrap intervals. Systems were compared on the same cases with exact McNemar tests [@mcnemar1947note] (accuracy) and Wilcoxon signed-rank tests (questions). P-values were Holm-adjusted [@holm1979simple] within each condition across four pre-specified comparisons (S3 vs S1, S3 vs S2, S3 vs S3-bin, S4 vs S3). Errors were attributed to abstention, extraction, routing (premature commitment), clinician error, or bounds.
 
 ### 2.9 External check on real notes
 We used the MedCalc-Bench Verified release [@khandekar2024medcalc], with its label audits [@ye2025stewardship; @krohngrimberghe2026audit], for the five overlapping calculators (qSOFA is not included). This comprised 100 test notes and a seeded sample of 584 training notes, with duplicates of test notes excluded. These are published, de-identified case reports licensed CC-BY-SA 4.0. They were used under a documented exception to the project's synthetic-only rule and were not redistributed.
@@ -168,6 +170,8 @@ For each note we report:
 - Qwen: 99.8% for both, 1.23 vs 2.21 questions.
 
 Across missingness levels of 10%, 30% and 50%, reweighted to the natural share of undetermined cases, S3 needed 34–49% fewer questions than S1 at equal accuracy (Supplementary Table S3).
+
+![Decision-category accuracy (abstention counted as incorrect) versus mean questions per case, Haiku 4.5 extraction, 559 cases with validated notes in both styles. Left: clean notes, ideal clinician. Right: messy notes, noisy clinician.](figures/fig2_accuracy_vs_questions.pdf)
 
 **H3 (supported).** Treating missing inputs as normal (S3-bin) reduced accuracy to 91.2–91.8% (McNemar p<0.001 vs S3; 99–105 vs 2 discordant cases). S3-bin committed while the category was undetermined in 39–49% of cases and under-triaged 8.2–8.8% of patients. S3 under-triaged 0.0–0.1%.
 
@@ -201,6 +205,8 @@ Across missingness levels of 10%, 30% and 50%, reweighted to the natural share o
 
 S3-bin over-triaged least because it rarely left a case undetermined; the price was under-triage. S3 and S4 over-triaged when information was genuinely unavailable, which is the safe direction.
 
+![Under-triage (decision lower-risk than the truth) and over-triage (higher-risk) with a higher-risk fallback for undetermined cases, by system and condition (Haiku 4.5 extraction, 559 paired cases). Error bars: Wilson 95% CIs.](figures/fig3_safety_triage.pdf)
+
 **Messy notes (559 paired cases, ideal clinician).**
 - Haiku's S3 accuracy fell from 99.1% on clean notes to 98.6% on messy notes, and its silent missing-as-absent rate doubled (0.045 per case). S4 recovered part of this (99.1%).
 - Qwen was unaffected (99.5%).
@@ -217,6 +223,8 @@ S3-bin over-triaged least because it rarely left a case undetermined; the price 
 - The true category remained possible within our bounds for 93–95% of notes. The misses were extraction errors, mainly in HEART inputs (agreement with annotations 73–74%).
 
 The 100-note test split gave similar results: 59% determined, and 97% with the truth still possible.
+
+![Real case reports (MedCalc-Bench Verified training split; Haiku 4.5 extraction): share whose decision category is determined by the documented facts, versus share whose category is correct when missing inputs are treated as normal.](figures/fig4_real_notes.pdf)
 
 ## 4. Discussion
 
@@ -271,16 +279,6 @@ Unknown is not normal. Treating undocumented findings as normal quietly under-tr
 
 ::: {#refs}
 :::
-
-## Figures
-
-![Pipeline. A language model reads the note into typed tri-state facts (present / absent / unknown, with an exact evidence span and a confidence). Code normalizes units, computes the score's bounds over unknown inputs and, if the decision category is not determined, asks the clinician only for inputs that could change it; each answer updates the bounds.](figures/fig1_pipeline.pdf)
-
-![Decision-category accuracy (abstention counted as incorrect) versus mean questions per case, Haiku 4.5 extraction, 559 cases with validated notes in both styles. Left: clean notes, ideal clinician. Right: messy notes, noisy clinician.](figures/fig2_accuracy_vs_questions.pdf)
-
-![Under-triage (decision lower-risk than the truth) and over-triage (higher-risk) with a higher-risk fallback for undetermined cases, by system and condition (Haiku 4.5 extraction, 559 paired cases). Error bars: Wilson 95% CIs.](figures/fig3_safety_triage.pdf)
-
-![Real case reports (MedCalc-Bench Verified training split; Haiku 4.5 extraction): share whose decision category is determined by the documented facts, versus share whose category is correct when missing inputs are treated as normal.](figures/fig4_real_notes.pdf)
 
 ## Tables
 
