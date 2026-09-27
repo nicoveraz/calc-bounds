@@ -1,0 +1,55 @@
+---
+title: "Supplementary material — Unknown is not normal"
+---
+
+## S1. Calculator readings awaiting clinical review
+
+Each calculator cites its primary source in code. Where the source was ambiguous or differed from common implementations, the implemented reading and the alternatives are listed below. **[PENDING: author's clinical review.]**
+
+{{section:../docs/CALCULATOR_NOTES.md|## Summary of review items}}
+
+## S2. Population priors for the synthetic cohort
+
+Plausible emergency-department populations for each calculator's intended use; parameters sampled independently except diastolic < systolic blood pressure − 15 mmHg. The PERC cohort represents low gestalt pre-test probability. **[PENDING: author's review.]**
+
+{{table:s2_priors}}
+
+## S3. Missingness sensitivity (oracle extraction, natural share of undetermined cases)
+
+Fresh cohorts (200 cases per calculator) at each missingness level; stratum results reweighted to the natural share of undetermined cases.
+
+{{table:s3_missingness}}
+
+## S4. Confidence-echo threshold sweep (S4 policy, clean notes, ideal clinician)
+
+{{table:s4_echo_sweep}}
+
+## S5. Calibration of extraction confidence
+
+Present/absent claims; isotonic and temperature calibration fitted on a seeded 30% development split, evaluated on the rest. Haiku 4.5 (self-reported): ECE 0.014 raw, 0.003 temperature, 0.002 isotonic. Qwen3.5-9B (token log-probabilities): ECE 0.048 raw, 0.033 temperature, 0.002 isotonic.
+
+![Reliability of raw extraction confidence (test split).](figures/figS5_reliability.png)
+
+## S6. Full results grid (559 paired cases; both extractors, both note styles, both clinicians)
+
+{{table:table3_conditions}}
+
+## S7. Paired comparisons (exact McNemar for accuracy, Wilcoxon signed-rank for questions; Holm-adjusted within condition)
+
+Full cohort (n = 1,200):
+
+{{table:table4_comparisons_full}}
+
+Paired subset (n = 559):
+
+{{table:table5_comparisons_paired559}}
+
+## S8. Real case reports, all splits and extractors
+
+{{table:table6_real_notes}}
+
+## S9. Exact prompts
+
+Prompt versions: renderer v3, extractor x1, agent a1. The example fact sheet is for one CURB-65 case with a trap; `<the rendered note>` stands for the note text.
+
+{{file:tables/s7_prompts.md}}

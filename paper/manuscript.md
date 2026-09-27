@@ -283,18 +283,32 @@ Unknown is not normal. Treating undocumented findings as normal quietly under-tr
 - **MedRaC.** From scores to steps. EMNLP 2025.
 - **MedMCP-Calc.** ACL 2026; arXiv:2601.23049.
 
-## Tables and figures
-- **Figure 1.** Pipeline. `figures/fig1_pipeline.pdf`
-- **Figure 2.** Accuracy vs questions per case; clean notes with an ideal clinician, and messy notes with a noisy clinician; Haiku extraction; 559 paired cases. `figures/fig2_accuracy_vs_questions.pdf`
-- **Figure 3.** Under- and over-triage with a higher-risk fallback, by system and condition, with Wilson 95% CIs. `figures/fig3_safety_triage.pdf`
-- **Figure 4.** Real case reports: category determined from the note, vs correct under missing-equals-normal, by calculator. `figures/fig4_real_notes.pdf`
-- **Table 1.** Cohort. `tables/table1_cohort.md`
-- **Table 2.** Main results, clean notes, ideal clinician, n=1,200. `tables/table2_main.md`
-- **Table 3.** Harder conditions, 559 paired cases. `tables/table3_conditions.md`
-- **Table 4.** Real notes. `tables/table6_real_notes.md`
-- **Supplementary tables.**
-  - S1 (calculator review items): `docs/CALCULATOR_NOTES.md`
-  - S2 (priors): `src/calc_bounds/cohort/priors.py`
-  - S3 (missingness sensitivity): `runs/main/report/missingness_sensitivity.csv`
-  - Paired comparisons: `tables/table4_comparisons_full.md`, `tables/table5_comparisons_paired559.md`
-  - S4 echo-threshold sweep and reliability diagram: `runs/main/report/`
+## Figures
+
+![Pipeline. A language model reads the note into typed tri-state facts (present / absent / unknown, with an exact evidence span and a confidence). Code normalizes units, computes the score's bounds over unknown inputs and, if the decision category is not determined, asks the clinician only for inputs that could change it; each answer updates the bounds.](figures/fig1_pipeline.pdf)
+
+![Decision-category accuracy (abstention counted as incorrect) versus mean questions per case, Haiku 4.5 extraction, 559 cases with validated notes in both styles. Left: clean notes, ideal clinician. Right: messy notes, noisy clinician.](figures/fig2_accuracy_vs_questions.pdf)
+
+![Under-triage (decision lower-risk than the truth) and over-triage (higher-risk) with a higher-risk fallback for undetermined cases, by system and condition (Haiku 4.5 extraction, 559 paired cases). Error bars: Wilson 95% CIs.](figures/fig3_safety_triage.pdf)
+
+![Real case reports (MedCalc-Bench Verified training split; Haiku 4.5 extraction): share whose decision category is determined by the documented facts, versus share whose category is correct when missing inputs are treated as normal.](figures/fig4_real_notes.pdf)
+
+## Tables
+
+**Table 1.** Synthetic cohort (n = 1,200). Undetermined: category not determined by the documented facts (50% by design).
+
+{{table:table1_cohort}}
+
+**Table 2.** Main results: clean notes, ideal clinician (n = 1,200 per row). S1 ask-all; S2 end-to-end agent (Opus 5.5; reads the notes, so identical across extraction rows); S3 bounds; S4 bounds + value-of-information ordering + confidence echo; S3-bin bounds with missing = normal. Accuracy counts abstention as incorrect; under-triage uses the higher-risk fallback. 95% CIs: Wilson (proportions), bootstrap (questions).
+
+{{table:table2_compact}}
+
+**Table 3.** Harder conditions (notes / clinician), Haiku 4.5 extraction, 559 paired cases; systems as in Table 2 (full grid including Qwen3.5-9B in Supplementary Table S6).
+
+{{table:table3_compact}}
+
+**Table 4.** Real case reports (MedCalc-Bench Verified, training split sample; test split in Supplementary Table S8).
+
+{{table:table4_compact}}
+
+Supplementary material: calculator review items (S1), priors (S2), missingness sensitivity with natural-share reweighting (S3), confidence-echo threshold sweep (S4), calibration (S5), full result grids and paired comparisons (S6–S7), real-note test split (S8), exact prompts (S9).

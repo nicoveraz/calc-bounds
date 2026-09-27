@@ -213,6 +213,79 @@ def anchor_table(run: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def compact_tables(full: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+    """Narrow versions for the manuscript body (full tables go to the supplement)."""
+    t2 = full["table2_main"][
+        [
+            "Condition",
+            "System",
+            "Accuracy, % (95% CI)",
+            "Questions/case (95% CI)",
+            "Irrelevant questions, %",
+            "Premature commitment, %",
+            "Under-triage, % (95% CI)",
+        ]
+    ].rename(
+        columns={
+            "Condition": "Extraction",
+            "Irrelevant questions, %": "Irrelevant, %",
+            "Premature commitment, %": "Premature, %",
+        }
+    )
+    t3 = full["table3_conditions"]
+    t3 = t3[t3["Condition"].str.startswith("Haiku")][
+        [
+            "Condition",
+            "System",
+            "Accuracy, % (95% CI)",
+            "Correct when answering, %",
+            "Under-triage, % (95% CI)",
+            "Over-triage, %",
+            "Premature commitment, %",
+            "Questions/case (95% CI)",
+        ]
+    ].copy()
+    t3["Condition"] = t3["Condition"].str.replace("Haiku, ", "", regex=False)
+    t3 = t3.rename(
+        columns={
+            "Correct when answering, %": "Correct if answered, %",
+            "Premature commitment, %": "Premature, %",
+            "Questions/case (95% CI)": "Questions/case",
+        }
+    )
+    t4 = full["table6_real_notes"]
+    t4 = t4[t4["Split"] == "train"][
+        [
+            "Extractor",
+            "Calculator",
+            "n",
+            "Code reproduces label, %",
+            "Determined from note, % (95% CI)",
+            "Truth still possible, %",
+            "Category correct, missing=normal, %",
+        ]
+    ]
+    short = {
+        v: k
+        for k, v in {
+            "S1": POLICY_NAME["s1_ask_all"],
+            "S2": POLICY_NAME["s2_llm_agent"],
+            "S3": POLICY_NAME["s3_bounds"],
+            "S4": POLICY_NAME["s4_bounds_voi_echo"],
+            "S3-bin": POLICY_NAME["s3_bin"],
+        }.items()
+    }
+    for t in (t2, t3):
+        t["System"] = t["System"].map(short)
+    t2["Extraction"] = t2["Extraction"].str.replace(" extraction", "", regex=False)
+    t3["Condition"] = (
+        t3["Condition"]
+        .str.replace(" notes, ", " / ", regex=False)
+        .str.replace(" clinician", "", regex=False)
+    )
+    return {"table2_compact": t2, "table3_compact": t3, "table4_compact": t4}
+
+
 # --- figures --------------------------------------------------------------------------------
 
 
@@ -378,6 +451,62 @@ def fig_pipeline(out: Path) -> None:
     _save(fig, out, "fig1_pipeline")
 
 
+def supplement_tables(run: Path, calcs: dict, cases: list[PatientCase]) -> dict[str, pd.DataFrame]:
+    from calc_bounds.cohort.priors import DEFAULT_PRIORS
+    from calc_bounds.distributions import Bernoulli, Categorical, TruncNormal
+
+    rows = []
+    for cid, name in CALC_NAME.items():
+        for pid, d in DEFAULT_PRIORS[cid].items():
+            match d:
+                case Bernoulli(p=p):
+                    desc = f"P(yes) = {p:g}"
+                case Categorical(probs=pr):
+                    levels = calcs[cid].param(pid).domain.levels  # type: ignore[union-attr]
+                    desc = ", ".join(f"{lv} {q:g}" for lv, q in zip(levels, pr, strict=True))
+                case TruncNormal():
+                    desc = f"Normal({d.mean:g}, {d.sd:g}) truncated to [{d.lo:g}, {d.hi:g}]"
+            rows.append({"Calculator": name, "Parameter": pid, "Prior": desc})
+    report = run / "report"
+    miss = pd.read_csv(report / "missingness_sensitivity.csv")
+    miss["policy"] = miss["policy"].map(POLICY_NAME)
+    miss = miss.rename(
+        columns={
+            "missingness": "Missingness",
+            "policy": "System",
+            "accuracy_natural": "Accuracy (natural share)",
+            "questions_natural": "Questions/case (natural share)",
+            "mean_natural_undetermined": "Undetermined share",
+        }
+    ).round(3)
+    sweep = pd.read_csv(report / "s4_echo_threshold_sweep.csv")
+    sweep = sweep[~sweep["extraction"].str.contains("noisy")].round(4)
+    return {"s2_priors": pd.DataFrame(rows), "s3_missingness": miss, "s4_echo_sweep": sweep}
+
+
+def prompt_examples(cfg_calcs: dict, cases: list[PatientCase], out: Path) -> None:
+    """Exact prompts for one example case (supplement S7)."""
+    from calc_bounds.extraction.llm import EXTRACT_SYSTEM, extraction_prompt
+    from calc_bounds.policies.llm_agent import AGENT_SYSTEM, initial_prompt
+    from calc_bounds.render.prompts import JUDGE_SYSTEM, RENDER_SYSTEM, judge_prompt, render_prompt
+
+    case = next(c for c in cases if c.calculator == "curb65" and c.traps)
+    calc = cfg_calcs[case.calculator]
+    note = "<the rendered note>"
+    parts = [
+        ("Renderer (system)", RENDER_SYSTEM),
+        ("Renderer (user), example CURB-65 case", render_prompt(case, calc, "en-US")),
+        ("Judge (system)", JUDGE_SYSTEM),
+        ("Judge (user)", judge_prompt(note, calc)),
+        ("Extractor (system)", EXTRACT_SYSTEM),
+        ("Extractor (user)", extraction_prompt(note, calc)),
+        ("S2 agent (system)", AGENT_SYSTEM),
+        ("S2 agent (first user turn)", initial_prompt(note, calc)),
+    ]
+    text = "\n\n".join(f"### {h}\n\n```text\n{b}\n```" for h, b in parts)
+    (out / "s7_prompts.md").write_text(text + "\n")
+
+
 # --- entry point ----------------------------------------------------------------------------
 
 
@@ -432,6 +561,9 @@ def build(run: Path, out: Path, calcs: dict) -> dict[str, object]:
         "table5_comparisons_paired559": pd.DataFrame(comp_rows),
         "table6_real_notes": anchor_table(run),
     }
+    outputs |= compact_tables(outputs)
+    outputs |= supplement_tables(run, calcs, cases)
+    prompt_examples(calcs, cases, tables_dir)
     for name, df in outputs.items():
         df.to_csv(tables_dir / f"{name}.csv", index=False)
         (tables_dir / f"{name}.md").write_text(to_markdown(df))
@@ -446,4 +578,7 @@ def build(run: Path, out: Path, calcs: dict) -> dict[str, object]:
     )
     fig_safety(fig_tables, figs)
     fig_real_notes(run, figs)
+    import shutil
+
+    shutil.copy(run / "report" / "reliability.png", figs / "figS5_reliability.png")
     return {"tables": sorted(outputs), "messy_validated_cases": len(messy_ok)}
