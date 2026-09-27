@@ -5,6 +5,7 @@ authors:
   - family-names: "Vera Zúñiga"
     given-names: "Nicolás"
     affiliation: "Independent researcher, Chile"
+    email: "nicovera@quetru.cl"
 version: "0.1.0"
 date-released: "2026-09-27"
 license: MIT
