@@ -6,12 +6,24 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p build
-# arXiv: one document = manuscript + supplement as an appendix.
-{
-  cat manuscript.md
-  printf '\n\n\\clearpage\n\\appendix\n\n## Supplementary material\n\n'
-  sed '1,/^---$/{/^---$/!d;};1,/^---$/d' supplement.md | sed 's/^## /### /'
-} > arxiv.md
+# arXiv: manuscript + an appendix with the supplementary sections a reader needs to check the
+# claims. The full supplement (calculator readings, full grids, prompts) is supplement.pdf.
+python3 - <<'PY'
+import re
+from pathlib import Path
+keep = {"S2", "S3", "S4", "S5", "S8", "S10"}
+sup = Path("supplement.md").read_text()
+sup = re.sub(r"\A---\n.*?\n---\n", "", sup, flags=re.S)
+parts = re.split(r"(?m)^(?=## S\d+\.)", sup)
+kept = [p for p in parts if (m := re.match(r"## (S\d+)\.", p)) and m.group(1) in keep]
+appendix = (
+    "\n\n\\clearpage\n\\appendix\n\n## Supplementary material\n\n"
+    "Sections S1 (calculator readings), S6-S7 (full result grids and paired comparisons) and S9 "
+    "(exact prompts) are in the full supplementary material, `paper/supplement.pdf` in the code "
+    "repository.\n\n" + "".join(p.replace("## S", "### S", 1) for p in kept)
+)
+Path("arxiv.md").write_text(Path("manuscript.md").read_text() + appendix)
+PY
 for doc in manuscript supplement arxiv; do
   python3 - "$doc" <<'PY'
 import re, sys
@@ -96,8 +108,8 @@ path = Path("build/arxiv/main.tex")
 tex = path.read_text(encoding="utf8")
 # Author block as in the earlier papers.
 tex = re.sub(r"\\author\{.*?\}\n", lambda m: "\\author{Nicol\\'as Vera Z\\'u\\~niga\\\\\nIndependent Researcher, Chile\\\\\n\\texttt{nicovera@quetru.cl}}\n\\date{}\n", tex, count=1, flags=re.S)
-# Abstract section -> abstract environment (ends at the plain-language summary).
-m = re.search(r"\\section\{Abstract\}\\label\{abstract\}\n(.*?)(\n\\textbf\{Plain-language summary\.\})", tex, flags=re.S)
+# Abstract section -> abstract environment.
+m = re.search(r"\\section\{Abstract\}\\label\{abstract\}\n(.*?)(\n\\section\{)", tex, flags=re.S)
 tex = tex[: m.start()] + "\\begin{abstract}\n" + m.group(1).strip() + "\n\\end{abstract}\n" + tex[m.start(2):]
 # Drop horizontal rules from the Markdown '---' separators.
 tex = re.sub(r"\\begin\{center\}\\rule\{0\.5\\linewidth\}\{0\.5pt\}\\end\{center\}\n", "", tex)
