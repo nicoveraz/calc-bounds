@@ -1,4 +1,4 @@
-Clinician,Measure,Ask-all (S1),Agent (S2),Bounds (S3),Bounds + checks (S4),Missing = normal (S3-bin)
+Clinician,Measure,Ask-all,Agent,Bounds,Bounds + checks,Missing = normal
 Ideal,"Accuracy, %",99.4,99.6,99.4,99.7,91.2
 ,Questions per case,1.78,0.99,0.92,0.90,0.21
 ,"Irrelevant questions, %",48.1,9.5,0.0,0.0,0.0

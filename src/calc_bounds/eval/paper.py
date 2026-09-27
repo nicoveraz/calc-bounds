@@ -28,11 +28,11 @@ from calc_bounds.policies import Trace
 
 POLICY_ORDER = ["s1_ask_all", "s2_llm_agent", "s3_bounds", "s4_bounds_voi_echo", "s3_bin"]
 POLICY_NAME = {
-    "s1_ask_all": "S1 Ask-all",
-    "s2_llm_agent": "S2 Agent",
-    "s3_bounds": "S3 Bounds",
-    "s4_bounds_voi_echo": "S4 Bounds + checks",
-    "s3_bin": "S3-bin Missing = normal",
+    "s1_ask_all": "Ask-all",
+    "s2_llm_agent": "Agent",
+    "s3_bounds": "Bounds",
+    "s4_bounds_voi_echo": "Bounds + checks",
+    "s3_bin": "Missing = normal",
 }
 CALC_NAME = {
     "heart": "HEART",
@@ -158,13 +158,7 @@ def to_markdown(df: pd.DataFrame) -> str:
     return "\n".join(lines) + "\n"
 
 
-SHORT_NAME = {
-    "s1_ask_all": "Ask-all (S1)",
-    "s2_llm_agent": "Agent (S2)",
-    "s3_bounds": "Bounds (S3)",
-    "s4_bounds_voi_echo": "Bounds + checks (S4)",
-    "s3_bin": "Missing = normal (S3-bin)",
-}
+SHORT_NAME = POLICY_NAME
 
 
 def summary_table(ideal: pd.DataFrame, noisy: pd.DataFrame) -> pd.DataFrame:
@@ -307,18 +301,6 @@ def compact_tables(full: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
             "Category correct, missing=normal, %",
         ]
     ]
-    short = {
-        v: k
-        for k, v in {
-            "S1": POLICY_NAME["s1_ask_all"],
-            "S2": POLICY_NAME["s2_llm_agent"],
-            "S3": POLICY_NAME["s3_bounds"],
-            "S4": POLICY_NAME["s4_bounds_voi_echo"],
-            "S3-bin": POLICY_NAME["s3_bin"],
-        }.items()
-    }
-    for t in (t2, t3):
-        t["System"] = t["System"].map(short)
     t2["Extraction"] = t2["Extraction"].str.replace(" extraction", "", regex=False)
     t3["Condition"] = (
         t3["Condition"]
@@ -598,6 +580,19 @@ def supplement_tables(run: Path, calcs: dict, cases: list[PatientCase]) -> dict[
     ).round(3)
     sweep = pd.read_csv(report / "s4_echo_threshold_sweep.csv")
     sweep = sweep[~sweep["extraction"].str.contains("noisy")].round(4)
+    sweep["extraction"] = sweep["extraction"].map(
+        {"haiku__sonnet": "Haiku 4.5", "qwen_local__sonnet": "Qwen3.5-9B"}
+    )
+    sweep = sweep.rename(
+        columns={
+            "extraction": "Extractor",
+            "echo_threshold": "Confirm below confidence",
+            "accuracy": "Accuracy",
+            "mean_questions": "Questions/case",
+            "echo_per_case": "Confirmations/case",
+            "echo_caught_errors": "Errors caught",
+        }
+    )
     return {"s2_priors": pd.DataFrame(rows), "s3_missingness": miss, "s4_echo_sweep": sweep}
 
 
@@ -617,8 +612,8 @@ def prompt_examples(cfg_calcs: dict, cases: list[PatientCase], out: Path) -> Non
         ("Judge (user)", judge_prompt(note, calc)),
         ("Extractor (system)", EXTRACT_SYSTEM),
         ("Extractor (user)", extraction_prompt(note, calc)),
-        ("S2 agent (system)", AGENT_SYSTEM),
-        ("S2 agent (first user turn)", initial_prompt(note, calc)),
+        ("Agent (system)", AGENT_SYSTEM),
+        ("Agent (first user turn)", initial_prompt(note, calc)),
     ]
     text = "\n\n".join(f"### {h}\n\n```text\n{b}\n```" for h, b in parts)
     (out / "s7_prompts.md").write_text(text + "\n")

@@ -25,9 +25,9 @@ Fresh cohorts (200 cases per calculator) at each missingness level; stratum resu
 
 {{table:s3_missingness}}
 
-## S4. Confirmation threshold sweep (S4 policy, clean notes, ideal clinician)
+## S4. Confirmation threshold sweep (bounds + checks policy, clean notes, ideal clinician)
 
-S4 asks the clinician to confirm a decision-critical extracted value when its calibrated confidence is below the threshold.
+The bounds + checks policy asks the clinician to confirm a decision-critical extracted value when its calibrated confidence is below the threshold.
 
 {{table:s4_echo_sweep}}
 

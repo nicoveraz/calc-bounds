@@ -1,14 +1,14 @@
-| extraction | echo_threshold | accuracy | mean_questions | echo_per_case | echo_caught_errors |
+| Extractor | Confirm below confidence | Accuracy | Questions/case | Confirmations/case | Errors caught |
 |---|---|---|---|---|---|
-| haiku__sonnet | 0.5 | 0.995 | 0.8833 | 0.005 | 5 |
-| haiku__sonnet | 0.8 | 0.9967 | 0.895 | 0.015 | 9 |
-| haiku__sonnet | 0.9 | 0.9967 | 0.895 | 0.015 | 9 |
-| haiku__sonnet | 0.95 | 0.9967 | 0.895 | 0.015 | 9 |
-| haiku__sonnet | 0.99 | 0.9983 | 1.705 | 0.8242 | 19 |
-| haiku__sonnet | 0.999 | 0.9983 | 1.7075 | 0.8267 | 19 |
-| qwen_local__sonnet | 0.5 | 0.9983 | 1.1783 | 0.0 | 0 |
-| qwen_local__sonnet | 0.8 | 0.9983 | 1.1783 | 0.0 | 0 |
-| qwen_local__sonnet | 0.9 | 0.9983 | 1.1983 | 0.02 | 2 |
-| qwen_local__sonnet | 0.95 | 0.9983 | 1.2967 | 0.1183 | 5 |
-| qwen_local__sonnet | 0.99 | 0.9983 | 1.8142 | 0.6358 | 6 |
-| qwen_local__sonnet | 0.999 | 0.9983 | 1.8142 | 0.6358 | 6 |
+| Haiku 4.5 | 0.5 | 0.995 | 0.8833 | 0.005 | 5 |
+| Haiku 4.5 | 0.8 | 0.9967 | 0.895 | 0.015 | 9 |
+| Haiku 4.5 | 0.9 | 0.9967 | 0.895 | 0.015 | 9 |
+| Haiku 4.5 | 0.95 | 0.9967 | 0.895 | 0.015 | 9 |
+| Haiku 4.5 | 0.99 | 0.9983 | 1.705 | 0.8242 | 19 |
+| Haiku 4.5 | 0.999 | 0.9983 | 1.7075 | 0.8267 | 19 |
+| Qwen3.5-9B | 0.5 | 0.9983 | 1.1783 | 0.0 | 0 |
+| Qwen3.5-9B | 0.8 | 0.9983 | 1.1783 | 0.0 | 0 |
+| Qwen3.5-9B | 0.9 | 0.9983 | 1.1983 | 0.02 | 2 |
+| Qwen3.5-9B | 0.95 | 0.9983 | 1.2967 | 0.1183 | 5 |
+| Qwen3.5-9B | 0.99 | 0.9983 | 1.8142 | 0.6358 | 6 |
+| Qwen3.5-9B | 0.999 | 0.9983 | 1.8142 | 0.6358 | 6 |

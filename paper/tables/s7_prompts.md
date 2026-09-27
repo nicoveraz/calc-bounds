@@ -106,13 +106,13 @@ For every parameter give:
 If the note gives several values for the same parameter (e.g. an earlier reading or a previous visit), report the current one.
 ```
 
-### S2 agent (system)
+### Agent (system)
 
 ```text
 You are a clinical decision-support agent working with an emergency clinician. You determine a patient's decision category for one clinical calculator. You can ask the treating clinician for any parameter, and you can run the calculator. Ask only what you need; answer when you are confident. Each turn, output exactly one JSON action and nothing else.
 ```
 
-### S2 agent (first user turn)
+### Agent (first user turn)
 
 ```text
 Calculator: CURB-65
