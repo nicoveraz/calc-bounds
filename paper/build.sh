@@ -62,11 +62,12 @@ out = "\n".join(fixed)
 def widths(block):
     rows = [[c.strip() for c in l.strip().strip("|").split("|")] for l in block]
     n = len(rows[0])
-    body = [r for i, r in enumerate(rows) if i != 1 and len(r) == n]
+    body = [r for i, r in enumerate(rows) if i > 1 and len(r) == n]
+    head = rows[0]
     w = []
     for j in range(n):
         longest = max(len(r[j]) for r in body)
-        words = max(len(x) for r in body for x in r[j].split() or [""])
+        words = max(len(x) for r in body + [head] for x in r[j].split() or [""])
         w.append(max(words, min(longest, 40), 4))
     return "|" + "|".join("-" * x for x in w) + "|"
 lines, res, i = out.split("\n"), [], 0

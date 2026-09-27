@@ -3,6 +3,8 @@ title: "Unknown is not normal: separating language-model extraction from rule-ba
 author: "Nicolás Vera Zúñiga — Independent researcher, Chile — nicovera@quetru.cl"
 bibliography: refs.bib
 link-citations: true
+header-includes:
+  - \usepackage{needspace}
 ---
 
 ## Abstract
@@ -41,19 +43,16 @@ We test a simple division of labour (Figure 1). A language model reads the note 
 
 **Ideal conditions (Table 1).** H1 was supported. The bounds policy matched ask-all accuracy with every extractor while asking 44–48% fewer questions (Haiku: 99.4% for both, 0.92 vs 1.78 questions; p<0.001). About half of ask-all's questions could not change the decision; the bounds policy asked none. The saving held at 10%, 30% and 50% missingness (34–49% fewer questions; Supplementary S3). H3 was supported: treating missing as normal (S3-bin) reduced accuracy to 91.2–91.8% (p<0.001), answered before the category was determined in 39–49% of cases, and under-triaged 8.2–8.8% of patients, against 0.0–0.1% for the bounds policy. Haiku itself occasionally turned an undocumented input into "absent" (0.022 per case), which explains most of its small accuracy loss. Qwen missed 17% of documented negatives but labelled them unknown, so they were asked rather than assumed. H2 was partly supported: the agent was as accurate (99.6%) but asked more questions (0.99 per case, p<0.001), 9.5% of them irrelevant, and answered prematurely in 0.2% of cases. H4 was partly supported: confirmation raised Haiku accuracy from 99.4% to 99.7% with fewer questions overall (0.90 vs 0.92), but the gain was not significant because Haiku made few errors to catch. Calibration reduced expected calibration error to 0.002 for both extractors (Supplementary S5).
 
-**Table 1.** Clean notes, ideal clinician (n = 1,200). S1 ask-all; S2 end-to-end agent (reads the note, so identical across extractors); S3 bounds; S4 bounds with value-of-information ordering and confirmation; S3-bin missing = normal. Accuracy counts abstention as incorrect; under-triage uses the higher-risk fallback.
+**Harder conditions (Table 1, Figures 2–3).** A noisy clinician cost every policy that asks 12–16 accuracy points, mostly through abstention: a "don't know" to the one decisive question leaves the category open. When they did answer, S1, S3 and S4 were 96.8–97.8% correct. The agent became less accurate than the bounds policy (83.5% vs 87.0%, p<0.001) and committed prematurely in 2.7% of cases; the code policies never did. S3-bin's overall accuracy matched the bounds policy under noise because it rarely asks, but when it answered it was right only 89–91% of the time, and it under-triaged 8.4–10.2% of patients in every condition (the bounds policy: 0.0–0.5%). With the higher-risk fallback, the bounds policies over-triaged when information was genuinely unavailable (9.6–12.9% under noise), the safe direction. On messy notes, Haiku extraction lost a little accuracy (98.6%; S4 recovered 99.1%), Qwen none (99.5%), and the agent reading the notes directly was more accurate than S3 with Haiku (99.8% vs 98.6%, p=0.047).
 
-{{table:table2_compact}}
+\needspace{16\baselineskip}
+**Table 1.** Main results with Claude Haiku 4.5 extraction, clean notes, all 1,200 cases, with an ideal and a noisy clinician. Accuracy counts abstention as incorrect. Under-triage: a lower-risk category than the truth, with undetermined cases assigned the highest-risk category still possible. Results for the oracle and Qwen3.5-9B extractors and for messy notes are in Supplementary S6.
 
-**Harder conditions (Table 2, Figures 2–3).** A noisy clinician cost every policy that asks 12–16 accuracy points, mostly through abstention: a "don't know" to the one decisive question leaves the category open. When they did answer, S1, S3 and S4 were 96.8–97.8% correct. The agent became less accurate than the bounds policy (83.5% vs 87.0%, p<0.001) and committed prematurely in 2.7% of cases; the code policies never did. S3-bin's overall accuracy matched the bounds policy under noise because it rarely asks, but when it answered it was right only 89–91% of the time, and it under-triaged 8.4–10.2% of patients in every condition (the bounds policy: 0.0–0.5%). With the higher-risk fallback, the bounds policies over-triaged when information was genuinely unavailable (9.6–12.9% under noise), the safe direction. On messy notes, Haiku extraction lost a little accuracy (98.6%; S4 recovered 99.1%), Qwen none (99.5%), and the agent reading the notes directly was more accurate than S3 with Haiku (99.8% vs 98.6%, p=0.047).
+{{table:table_summary}}
 
 ![Accuracy versus mean questions per case (Haiku extraction, 559 paired cases). Left: clean notes, ideal clinician. Right: messy notes, noisy clinician.](figures/fig2_accuracy_vs_questions.pdf)
 
 ![Under-triage and over-triage with a higher-risk fallback for undetermined cases (Haiku extraction, 559 paired cases). Error bars: Wilson 95% confidence intervals.](figures/fig3_safety_triage.pdf)
-
-**Table 2.** Harder conditions (notes / clinician), Haiku extraction, 559 paired cases; policies as in Table 1. Full grid with Qwen3.5-9B in Supplementary S6.
-
-{{table:table3_compact}}
 
 **Real notes (Figure 4).** Our code reproduced MedCalc-Bench's labels from its annotated inputs for all HEART, CURB-65, PERC and Wells notes; for Cockcroft-Gault only 51%, because the benchmark chooses actual, ideal or adjusted weight by body-mass index. Only 52% (95% CI 48–56) of the 584 training case reports had a category determined by the documented facts (Qwen: 47%), ranging from 90% for PERC to 13% for HEART. Under the missing-equals-normal convention the category was correct for 69% of notes (HEART 22%). The truth stayed within our bounds for 93–95% of notes; the misses were extraction errors, mainly in HEART inputs. The test split gave similar results (Supplementary S8).
 

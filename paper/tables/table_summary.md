@@ -1,0 +1,10 @@
+| Clinician | Measure | Ask-all (S1) | Agent (S2) | Bounds (S3) | Bounds + checks (S4) | Missing = normal (S3-bin) |
+|---|---|---|---|---|---|---|
+| Ideal | Accuracy, % | 99.4 | 99.6 | 99.4 | 99.7 | 91.2 |
+|  | Questions per case | 1.78 | 0.99 | 0.92 | 0.90 | 0.21 |
+|  | Irrelevant questions, % | 48.1 | 9.5 | 0.0 | 0.0 | 0.0 |
+|  | Answered too early, % | 0.0 | 0.2 | 0.0 | 0.0 | 40.0 |
+|  | Under-triage, % | 0.1 | 0.1 | 0.1 | 0.1 | 8.5 |
+| Noisy | Accuracy, % | 87.0 | 83.5 | 87.0 | 87.2 | 88.0 |
+|  | Answered too early, % | 0.0 | 2.7 | 0.0 | 0.0 | 38.7 |
+|  | Under-triage, % | 0.3 | 0.5 | 0.3 | 0.3 | 8.4 |

@@ -37,7 +37,13 @@ Present/absent claims; isotonic and temperature calibration fitted on a seeded 3
 
 ![Reliability of raw extraction confidence (test split).](figures/figS5_reliability.pdf)
 
-## S6. Full results grid (559 paired cases; both extractors, both note styles, both clinicians)
+## S6. Full results grids
+
+Clean notes, ideal clinician, all 1,200 cases, every extractor:
+
+{{table:table2_compact}}
+
+559 paired cases with validated notes in both styles; both extractors, both note styles, both clinicians:
 
 {{table:table3_conditions}}
 

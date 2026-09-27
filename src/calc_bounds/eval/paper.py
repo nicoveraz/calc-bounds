@@ -29,10 +29,10 @@ from calc_bounds.policies import Trace
 POLICY_ORDER = ["s1_ask_all", "s2_llm_agent", "s3_bounds", "s4_bounds_voi_echo", "s3_bin"]
 POLICY_NAME = {
     "s1_ask_all": "S1 Ask-all",
-    "s2_llm_agent": "S2 LLM agent",
+    "s2_llm_agent": "S2 Agent",
     "s3_bounds": "S3 Bounds",
-    "s4_bounds_voi_echo": "S4 Bounds+VOI+echo",
-    "s3_bin": "S3-bin (missing=normal)",
+    "s4_bounds_voi_echo": "S4 Bounds + checks",
+    "s3_bin": "S3-bin Missing = normal",
 }
 CALC_NAME = {
     "heart": "HEART",
@@ -156,6 +156,48 @@ def to_markdown(df: pd.DataFrame) -> str:
     for _, r in df.iterrows():
         lines.append("| " + " | ".join(str(r[c]) for c in cols) + " |")
     return "\n".join(lines) + "\n"
+
+
+SHORT_NAME = {
+    "s1_ask_all": "Ask-all (S1)",
+    "s2_llm_agent": "Agent (S2)",
+    "s3_bounds": "Bounds (S3)",
+    "s4_bounds_voi_echo": "Bounds + checks (S4)",
+    "s3_bin": "Missing = normal (S3-bin)",
+}
+
+
+def summary_table(ideal: pd.DataFrame, noisy: pd.DataFrame) -> pd.DataFrame:
+    """The paper's single results table: measures as rows, policies as columns (Haiku
+    extraction, clean notes, full cohort; ideal and noisy clinician)."""
+
+    def per_policy(t: pd.DataFrame, fn) -> dict[str, str]:
+        return {SHORT_NAME[p]: fn(t[t["policy"] == p]) for p in POLICY_ORDER}
+
+    def rate(col: str):
+        return lambda g: f"{100 * g[col].mean():.1f}"
+
+    def irrelevant(g: pd.DataFrame) -> str:
+        asked = g["n_questions"].sum()
+        return f"{100 * g['n_irrelevant_questions'].sum() / asked:.1f}" if asked else "–"
+
+    rows = [
+        ("Ideal", "Accuracy, %", rate("correct")),
+        ("Ideal", "Questions per case", lambda g: f"{g['n_questions'].mean():.2f}"),
+        ("Ideal", "Irrelevant questions, %", irrelevant),
+        ("Ideal", "Answered too early, %", rate("premature_commitment")),
+        ("Ideal", "Under-triage, %", rate("under_triage")),
+        ("Noisy", "Accuracy, %", rate("correct")),
+        ("Noisy", "Answered too early, %", rate("premature_commitment")),
+        ("Noisy", "Under-triage, %", rate("under_triage")),
+    ]
+    out, previous = [], None
+    for clin, measure, fn in rows:
+        t = ideal if clin == "Ideal" else noisy
+        label = clin if clin != previous else ""
+        previous = clin
+        out.append({"Clinician": label, "Measure": measure} | per_policy(t, fn))
+    return pd.DataFrame(out)
 
 
 def cohort_table(cases: list[PatientCase], calcs: dict) -> pd.DataFrame:
@@ -618,6 +660,9 @@ def build(run: Path, out: Path, calcs: dict) -> dict[str, object]:
         full_comp += comparison_rows(load_table(run, label, cases), name)
 
     outputs = {
+        "table_summary": summary_table(
+            load_table(run, "haiku__sonnet", cases), load_table(run, "haiku__sonnet__noisy", cases)
+        ),
         "table1_cohort": cohort,
         "table2_main": pd.DataFrame(main_rows),
         "table3_conditions": pd.DataFrame(hard_rows),
