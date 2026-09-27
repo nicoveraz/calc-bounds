@@ -52,7 +52,7 @@ We test a simple division of labour (Figure 1). A language model reads the note 
 
 ![Decision-category accuracy (left) and questions per case (right) for each policy under the four conditions (Haiku extraction, 559 cases with validated notes in both styles). Symbols that coincide overlap: for example, ask-all asks the same questions whichever clinician answers](figures/fig2_accuracy_vs_questions.pdf)
 
-![Under-triage (a lower-risk category than the truth) and over-triage (higher-risk) for each policy under the four conditions, with undetermined cases assigned the highest-risk category still possible (Haiku extraction, 559 paired cases). Symbols as in Figure 2](figures/fig3_safety_triage.pdf)
+![Under-triage (a lower-risk category than the truth) and over-triage (higher-risk) for each policy under the four conditions, with undetermined cases assigned the highest-risk category still possible (Haiku extraction, 559 paired cases). Symbols as in Figure 2, offset vertically within each row; lines are Wilson 95% confidence intervals](figures/fig3_safety_triage.pdf)
 
 **Real notes (Figure 4).** Our code reproduced MedCalc-Bench's labels from its annotated inputs for all HEART, CURB-65, PERC and Wells notes; for Cockcroft-Gault only 51%, because the benchmark chooses actual, ideal or adjusted weight by body-mass index. Only 52% (95% CI 48–56) of the 584 training case reports had a category determined by the documented facts (Qwen: 47%), ranging from 90% for PERC to 13% for HEART. Under the missing-equals-normal convention the category was correct for 69% of notes (HEART 22%). The truth stayed within our bounds for 93–95% of notes; the misses were extraction errors, mainly in HEART inputs. The test split gave similar results (Supplementary S8).
 

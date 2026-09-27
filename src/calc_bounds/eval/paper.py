@@ -380,20 +380,33 @@ CONDITIONS = {  # label -> (table key, marker, filled): circles clean, triangles
 }
 
 
-def _dotchart(tables: dict[str, pd.DataFrame], panels, out: Path, name: str) -> None:
+def _dotchart(
+    tables: dict[str, pd.DataFrame], panels, out: Path, name: str, ci: bool = False
+) -> None:
     """Base-R `dotchart` layout: policies as rows, one panel per measure, one symbol per
-    condition (filled: ideal clinician; open: noisy; circle: clean notes; triangle: messy)."""
+    condition (filled: ideal clinician; open: noisy; circle: clean notes; triangle: messy).
+    With `ci`, each measure is a 0/1 column and Wilson 95% intervals are drawn as thin lines;
+    the conditions are then offset vertically within each row so the lines do not overlap."""
     pols = list(reversed(POLICY_ORDER))  # dotchart draws the first row at the top
     fig, axes = plt.subplots(1, len(panels), figsize=(9, 3.4), sharey=True)
+    offsets = [0.24, 0.08, -0.08, -0.24] if ci else [0.0] * len(CONDITIONS)
     for ax, (xlabel, measure, xlim, xticks) in zip(axes, panels, strict=True):
         for y in range(len(pols)):
             ax.axhline(y, color="gray", linestyle=":", linewidth=0.7, zorder=0)
-        for label, (key, marker, filled) in CONDITIONS.items():
+        for off, (label, (key, marker, filled)) in zip(offsets, CONDITIONS.items(), strict=True):
             t = tables[key]
-            x = [measure(t[t.policy == p]) for p in pols]
+            ys = [y + off for y in range(len(pols))]
+            if ci:
+                groups = [t.loc[t.policy == p, measure] for p in pols]
+                x = [100 * g.mean() for g in groups]
+                for y, g in zip(ys, groups, strict=True):
+                    lo, hi = wilson(int(g.sum()), len(g))
+                    ax.plot([100 * lo, 100 * hi], [y, y], color="black", linewidth=0.6, zorder=2)
+            else:
+                x = [measure(t[t.policy == p]) for p in pols]
             ax.scatter(
                 x,
-                range(len(pols)),
+                ys,
                 marker=marker,
                 s=36,
                 linewidths=1.1,
@@ -440,25 +453,17 @@ def fig_tradeoff(tables: dict[str, pd.DataFrame], out: Path) -> None:
 
 
 def fig_safety(tables: dict[str, pd.DataFrame], out: Path) -> None:
-    """Under- and over-triage with the higher-risk fallback (Haiku extraction, 559 cases)."""
+    """Under- and over-triage with the higher-risk fallback (Haiku extraction, 559 cases), with
+    Wilson 95% intervals."""
     _dotchart(
         tables,
         [
-            (
-                "Under-triage (% of cases)",
-                lambda g: 100 * g["under_triage"].mean(),
-                (-0.5, 15),
-                range(0, 16, 5),
-            ),
-            (
-                "Over-triage (% of cases)",
-                lambda g: 100 * g["over_triage"].mean(),
-                (-0.5, 15),
-                range(0, 16, 5),
-            ),
+            ("Under-triage (% of cases)", "under_triage", (-0.5, 17), range(0, 16, 5)),
+            ("Over-triage (% of cases)", "over_triage", (-0.5, 17), range(0, 16, 5)),
         ],
         out,
         "fig3_safety_triage",
+        ci=True,
     )
 
 
