@@ -1,26 +1,53 @@
 # calc-bounds
 
-**Unknown is not normal.** A language model reads a clinical note into typed facts, each marked
-*present*, *absent* or *unknown* with an exact evidence span. Deterministic code then computes a
-clinical risk score's possible values over the unknowns (its *bounds*). It decides whether the
-decision category is already determined and, if not, asks the clinician only for the facts
-that could change it.
+**Unknown is not normal.** When a clinical note does not mention a finding, that does not mean
+the finding is absent. This project tests a safer way to use AI for clinical risk scores
+(HEART, CURB-65, qSOFA, PERC, Wells, Cockcroft-Gault):
 
-Code and data for Paper 1 (draft: [`paper/manuscript.md`](paper/manuscript.md)).
+1. **The AI only reads.** A language model reads the note and marks each score item as
+   *present*, *absent* or *not mentioned*, quoting the sentence it relied on.
+2. **Ordinary code does the math.** It checks whether the missing items could change the
+   decision (for example, low vs moderate risk). If they could not, it gives the answer.
+3. **It asks only what matters.** If a missing item could change the decision, it asks the
+   clinician about that item and nothing else.
 
-## Main results (English)
-- **Treating undocumented findings as normal under-triages about 1 in 12 patients.** This
-  held in every condition tested (8.2–10.2%), even when headline accuracy looked fine. The
-  bounds policy under-triaged 0.0–0.5%.
-- **The bounds policy asks half as many questions as asking for everything, at the same
-  accuracy.** It asks no irrelevant questions and never commits before the category is
-  determined.
-- **A frontier end-to-end agent (Opus 5.5) is competitive on accuracy** under ideal
-  conditions. It is worse under a noisy clinician, commits prematurely in up to 3.4% of
-  cases, and about 10% of its questions are irrelevant.
-- **A 9B local model (Qwen3.5-9B) as extractor reaches oracle-level accuracy.**
-- **On 584 real case reports (MedCalc-Bench Verified), only 52% determine the category** from
-  the note alone. HEART: 13%.
+Code for Paper 1 (draft: [`paper/manuscript.md`](paper/manuscript.md)).
+
+## Main results in plain language
+Tested on 1,200 synthetic emergency patients, with a simulated clinician answering questions.
+
+- **Assuming "not mentioned = normal" puts about 1 in 12 patients in a lower-risk group than
+  they belong to (8.5%).** This is how many tools and benchmarks treat missing data. The risk
+  stayed the same with messy notes and with a clinician who sometimes misremembers (8–10%).
+  Our approach did this in about 1 in 1,000 patients (0.1%).
+- **About one question per patient instead of two, with the same accuracy.** Asking for every
+  missing item took 1.8 questions per patient, and about half of those questions could not
+  have changed the decision. Our approach asked 0.9 questions per patient, every one of them
+  capable of changing the result. Both got the risk group right in 99.4% of patients.
+- **It never answers too early.** It gives a risk group only when the answer can no longer
+  change.
+- **A leading AI agent working alone (Claude Opus 5.5) did well in ideal conditions but less
+  well in realistic ones.**
+  - When the clinician always answered correctly, it was as accurate (99.6%), but about 1 in
+    10 of its questions could not have changed the decision.
+  - When the clinician sometimes did not know, misremembered, or answered vaguely, it was
+    less accurate than our approach (83.5% vs 87.0%). It also gave an answer before it had
+    enough information in about 3% of patients.
+- **A small AI model that runs on a laptop was enough for the reading step.** Accuracy
+  matched the perfect-reading baseline (99.8%). Patient text never has to leave the
+  computer.
+- **Real notes are often incomplete.** In 584 published case reports (MedCalc-Bench), only
+  about half (52%) had enough information to settle the risk group. For HEART it was 13%.
+  There, "not mentioned = normal" gave the right risk group only 69% of the time.
+
+**Bottom line for clinicians:** an AI that fills gaps by assuming "normal" will under-rate
+some patients' risk without warning. Letting the AI only read the note, and letting code
+decide what is still unknown and whether it matters, avoids this. You are asked only the
+questions that could change the decision.
+
+**Limits:** the patients and notes are synthetic, the clinician is simulated, and the
+calculator readings were reviewed by one physician. Validation on real hospital records is
+future work.
 
 Details: [`docs/RESULTS.md`](docs/RESULTS.md) · tables and figures: [`paper/`](paper/)
 
@@ -43,7 +70,7 @@ Details: [`docs/RESULTS.md`](docs/RESULTS.md) · tables and figures: [`paper/`](
 ## Reproduce
 ```sh
 uv sync
-uv run pytest                      # 149 tests, including hypothesis property tests of the bounds
+uv run pytest                      # 150 tests, including hypothesis property tests of the bounds
 scripts/reproduce_paper.sh         # regenerates every table and figure
 ```
 Only the code is released. The synthetic notes, extractions, traces and the LLM response cache
