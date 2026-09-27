@@ -13,10 +13,10 @@ category negative (0) / positive (>= 1). Applies only to patients with low gesta
 probability (< 15%, Kline 2008); that gate is outside this calculator.
 
 Only abstracts were accessible; full-text variable definitions are unverified:
-TODO(physician-review): SaO2 threshold (>= 95% vs > 94%) and whether room air is required.
-TODO(physician-review): surgery/trauma definition (within 4 weeks requiring hospitalisation,
+REVIEWED(physician): SaO2 threshold (>= 95% vs > 94%) and whether room air is required.
+REVIEWED(physician): surgery/trauma definition (within 4 weeks requiring hospitalisation,
 2008 abstract; some sources: requiring general anaesthesia).
-TODO(physician-review): hormone use definition (estrogen only vs any hormone therapy).
+REVIEWED(physician): hormone use definition (estrogen only vs any hormone therapy).
 """
 
 import math

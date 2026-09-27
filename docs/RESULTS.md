@@ -247,7 +247,7 @@ size (1,200 clean vs 559 messy), so compare within a row group.
   vague.
 - **Claude calls are not bare API calls.** They run through Claude Code headless (`claude -p`,
   with tools off and our own system prompt). Confidence for Claude models is self-reported.
-- **Unreviewed choices.** Several calculator definitions, population priors and "stated
-  normal" intervals await physician review (`docs/CALCULATOR_NOTES.md`).
+- **Single-reviewer choices.** Calculator definitions, population priors and "stated
+  normal" intervals were reviewed by one physician, the author (`docs/CALCULATOR_NOTES.md`).
 - **Spanish (es-CL) is not yet evaluated.** 113 notes are rendered and cached; the style
   guide awaits physician review.

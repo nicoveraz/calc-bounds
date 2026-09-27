@@ -11,8 +11,8 @@ Points: clinical signs of DVT 3; alternative diagnosis less likely than PE 3; he
 haemoptysis 1; malignancy 1. PE unlikely if <= 4, likely if > 4.
 
 Only abstracts of Wells 2000/2001 were accessible:
-TODO(physician-review): immobilisation "> 3 days" (NICE) vs ">= 3 days" (MDCalc).
-TODO(physician-review): "alternative diagnosis less likely than PE" (NICE) vs MDCalc's
+REVIEWED(physician): immobilisation "> 3 days" (NICE) vs ">= 3 days" (MDCalc).
+REVIEWED(physician): "alternative diagnosis less likely than PE" (NICE) vs MDCalc's
 "PE #1 diagnosis OR equally likely".
 """
 

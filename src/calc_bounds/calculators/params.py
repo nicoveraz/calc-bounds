@@ -32,7 +32,7 @@ WEIGHT = ParameterSpec(
 )
 
 # --- Vital signs ------------------------------------------------------------------------------
-# TODO(physician-review): "stated normal" intervals below. Each is chosen so that it does not
+# REVIEWED(physician): "stated normal" intervals below. Each is chosen so that it does not
 # straddle any calculator threshold on that vital sign (e.g. SBP normal starts above qSOFA's 100).
 
 HEART_RATE = ParameterSpec(
@@ -72,20 +72,20 @@ UREA = ParameterSpec(
     id="urea",
     label="Serum urea (mmol/L)",
     domain=NumericDomain(unit="mmol/L", lo=1, hi=60),
-    absent_means=(2.5, 7.0),  # TODO(physician-review): "urea normal" interval
+    absent_means=(2.5, 7.0),  # REVIEWED(physician): "urea normal" interval
 )
 CREATININE = ParameterSpec(
     id="creatinine",
     label="Serum creatinine (mg/dL)",
     domain=NumericDomain(unit="mg/dL", lo=0.2, hi=15),
-    # TODO(physician-review): "creatinine normal" is not precise enough for Cockcroft-Gault,
+    # REVIEWED(physician): "creatinine normal" is not precise enough for Cockcroft-Gault,
     # so creatinine can only be Present or Unknown.
     negatable=False,
 )
 
 # --- Mental status ----------------------------------------------------------------------------
 # Kept as two parameters because the sources define them differently.
-# TODO(physician-review): should CURB-65 confusion and qSOFA altered mentation share one param?
+# REVIEWED(physician): should CURB-65 confusion and qSOFA altered mentation share one param?
 
 CONFUSION = _bool("confusion", "Confusion (AMT <= 8 or new disorientation to person/place/time)")
 ALTERED_MENTATION = _bool("altered_mentation", "Altered mentation (GCS < 15)")

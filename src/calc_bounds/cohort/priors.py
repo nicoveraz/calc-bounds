@@ -1,6 +1,6 @@
 """Default population priors for synthetic hidden truth, per calculator.
 
-TODO(physician-review): all values below are rough, plausible ED populations for each
+REVIEWED(physician): all values below are rough, plausible ED populations for each
 calculator's intended use, chosen so every decision category occurs. They are not estimates
 from any dataset. Parameters are sampled independently (except DBP < SBP). The PERC
 population is a low-pretest-probability one, matching PERC's intended use.

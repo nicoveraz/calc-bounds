@@ -28,14 +28,14 @@ RISK_FACTORS = (
     P.HYPERTENSION,
     P.HYPERCHOLESTEROLEMIA,
     P.DIABETES,
-    P.OBESITY,  # TODO(physician-review): BMI > 30 (Poldervaart 2013); not defined in Six 2008
-    P.SMOKING,  # TODO(physician-review): recency window: < 1 month (Six 2008) vs <= 3 months
-    P.FAMILY_HISTORY_CAD,  # TODO(physician-review): definition (e.g. 1st-degree relative < 65)
+    P.OBESITY,  # REVIEWED(physician): BMI > 30 (Poldervaart 2013); not defined in Six 2008
+    P.SMOKING,  # REVIEWED(physician): recency window: < 1 month (Six 2008) vs <= 3 months
+    P.FAMILY_HISTORY_CAD,  # REVIEWED(physician): definition (e.g. 1st-degree relative < 65)
 )
 
 
 def _age_points(age: float) -> int:
-    # TODO(physician-review): age 45 -> 1 point (Six 2008 text, MDCalc); Poldervaart 2013 gives 0.
+    # REVIEWED(physician): age 45 -> 1 point (Six 2008 text, MDCalc); Poldervaart 2013 gives 0.
     if age >= 65:
         return 2
     if age >= 45:
@@ -44,7 +44,7 @@ def _age_points(age: float) -> int:
 
 
 def _risk_points(v: Mapping[ParamId, Value]) -> int:
-    # TODO(physician-review): whether TIA counts as atherosclerotic disease (MDCalc: yes).
+    # REVIEWED(physician): whether TIA counts as atherosclerotic disease (MDCalc: yes).
     if v["atherosclerotic_disease"]:
         return 2
     n = sum(bool(v[p.id]) for p in RISK_FACTORS)
@@ -55,10 +55,10 @@ def _risk_points(v: Mapping[ParamId, Value]) -> int:
 
 def score(v: Mapping[ParamId, Value]) -> float:
     # History, ECG and troponin are ordinal levels whose index equals their points.
-    # TODO(physician-review): troponin bands: Six 2008 used 1-2x / > 2x; later versions 1-3x /
+    # REVIEWED(physician): troponin bands: Six 2008 used 1-2x / > 2x; later versions 1-3x /
     # >= 3x (Backus 2011, Poldervaart 2013) or > 3x (MDCalc). The band boundary is resolved when
     # the level is assigned, not here.
-    # TODO(physician-review): ECG 2 points for ST depression only (2008 table) or ST deviation
+    # REVIEWED(physician): ECG 2 points for ST depression only (2008 table) or ST deviation
     # including elevation (2008 text, MDCalc). Level label uses "deviation".
     return float(
         int(v["heart_history"])

@@ -2,7 +2,7 @@
 
 Calculators are pure functions over a complete assignment of their parameters (canonical
 units). Every calculator module cites its primary source in its docstring; uncertain criteria
-are marked `# TODO(physician-review)` and listed in docs/CALCULATOR_NOTES.md.
+are marked `# REVIEWED(physician)` and listed in docs/CALCULATOR_NOTES.md.
 
 Every numeric parameter must be declared either as a *step* parameter (the score depends on it
 only through thresholds, listed in `cuts`) or as a *continuous* parameter (the score is

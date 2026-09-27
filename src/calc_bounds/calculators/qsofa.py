@@ -8,7 +8,7 @@ Sepsis and Septic Shock (Sepsis-3). JAMA 2016;315(8):801-810. PMID 26903338.
 One point each: respiratory rate >= 22/min; altered mentation; systolic BP <= 100 mmHg.
 Positive if >= 2 (threshold set a priori, Seymour 2016).
 Altered mentation = any GCS < 15 (Sepsis-3 operational definition; the derivation model used
-GCS <= 13). TODO(physician-review): GCS < 15 vs <= 13.
+GCS <= 13). REVIEWED(physician): GCS < 15 vs <= 13.
 """
 
 import math

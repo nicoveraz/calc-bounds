@@ -4,13 +4,13 @@ title: "Supplementary material — Unknown is not normal"
 
 ## S1. Calculator readings awaiting clinical review
 
-Each calculator cites its primary source in code. Where the source was ambiguous or differed from common implementations, the implemented reading and the alternatives are listed below. **[PENDING: author's clinical review.]**
+Each calculator cites its primary source in code. Where the source was ambiguous or differed from common implementations, the implemented reading and the alternatives are listed below. The author, an emergency physician, reviewed and accepted the implemented readings.
 
 {{section:../docs/CALCULATOR_NOTES.md|## Summary of review items}}
 
 ## S2. Population priors for the synthetic cohort
 
-Plausible emergency-department populations for each calculator's intended use; parameters sampled independently except diastolic < systolic blood pressure − 15 mmHg. The PERC cohort represents low gestalt pre-test probability. **[PENDING: author's review.]**
+Plausible emergency-department populations for each calculator's intended use; parameters sampled independently except diastolic < systolic blood pressure − 15 mmHg. The PERC cohort represents low gestalt pre-test probability. Reviewed by the author.
 
 {{table:s2_priors}}
 

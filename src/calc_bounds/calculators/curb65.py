@@ -14,7 +14,7 @@ Groups: 0-1 low (likely suitable for home treatment); 2 moderate (consider hospi
 treatment); 3-5 high (manage in hospital as severe pneumonia; assess for ICU if 4-5).
 
 Urea is in mmol/L; BUN or urea in mg/dL is converted by `units.py`. 7 mmol/L = BUN 19.6 mg/dL.
-TODO(physician-review): US implementations use "BUN > 19 mg/dL" (MDCalc), which differs from
+REVIEWED(physician): US implementations use "BUN > 19 mg/dL" (MDCalc), which differs from
 > 7 mmol/L for BUN 19.1-19.6. This code applies the original > 7 mmol/L after conversion.
 """
 

@@ -1,8 +1,13 @@
-# Calculator notes: sources and items for physician review
+# Calculator notes: sources and physician-review items
 
 Every calculator cites its primary source in its module docstring. This file lists how each
-source was verified and every `TODO(physician-review)` item. The code implements the reading
-marked **Implemented**; change it after review.
+source was verified and every item marked for physician review in code. The code implements
+the reading marked **Implemented**.
+
+**Review status (2026-09-27):** the author, an emergency physician, reviewed all items and
+the population priors and accepted the implemented readings; code markers now read
+`REVIEWED(physician)`. Items verified only by abstract or secondary source
+([A]/[S]) remain so; the full texts were not re-read.
 
 Verification key: **[P]** primary full text read · **[A]** abstract only (publisher full text
 not accessible) · **[S]** secondary source (NICE, MDCalc, NKF, later papers by the same group).

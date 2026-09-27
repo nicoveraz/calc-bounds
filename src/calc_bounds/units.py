@@ -18,7 +18,7 @@ UREA_MW = 60.06
 """g/mol. Urea CO(NH2)2."""
 BUN_PER_UREA = 2 * 14.007
 """mg of nitrogen per mmol of urea (two N atoms)."""
-CREATININE_UMOL_PER_MG_DL = 88.4  # TODO(physician-review): 88.4 vs 88.42 (MW 113.12)
+CREATININE_UMOL_PER_MG_DL = 88.4  # REVIEWED(physician): 88.4 vs 88.42 (MW 113.12)
 LB_TO_KG = 0.45359237
 
 # Multiplicative factor: canonical_value = value * factor.

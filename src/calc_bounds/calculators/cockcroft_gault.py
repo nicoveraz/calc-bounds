@@ -10,9 +10,9 @@ Assumes steady-state creatinine. Default thresholds (30, 60 mL/min) follow the l
 points of FDA Guidance for Industry, Pharmacokinetics in Patients with Impaired Renal Function
 (March 2024), Table 1 (normal >= 90, mild 60-<90, moderate 30-<60, severe < 30).
 
-TODO(physician-review): weight = actual body weight (as in the original); ideal/adjusted weight
+REVIEWED(physician): weight = actual body weight (as in the original); ideal/adjusted weight
 in obesity is not modelled.
-TODO(physician-review): default thresholds for the decision categories (config-overridable).
+REVIEWED(physician): default thresholds for the decision categories (config-overridable).
 """
 
 import itertools
