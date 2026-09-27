@@ -12,6 +12,61 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# Paper figures use the look of classic base-R graphics: Helvetica, a full black box, outward
+# ticks, y tick labels parallel to the axis, no grid, bold centred titles, boxed legends, open
+# plotting symbols and the R 4 default palette (grey fills for grouped bars).
+R_PALETTE = ["black", "#DF536B", "#61D04F", "#2297E6", "#28E2E5", "#CD0BBC", "#F5C710", "gray"]
+R_RC = {
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
+    "font.size": 9,
+    "axes.edgecolor": "black",
+    "axes.linewidth": 0.8,
+    "axes.labelcolor": "black",
+    "axes.grid": False,
+    "axes.spines.top": True,
+    "axes.spines.right": True,
+    "axes.titleweight": "bold",
+    "axes.titlesize": 10,
+    "axes.titlelocation": "center",
+    "xtick.direction": "out",
+    "ytick.direction": "out",
+    "xtick.color": "black",
+    "ytick.color": "black",
+    "xtick.major.size": 4,
+    "ytick.major.size": 4,
+    "legend.frameon": True,
+    "legend.fancybox": False,
+    "legend.edgecolor": "black",
+    "legend.framealpha": 1.0,
+    "patch.edgecolor": "black",
+    "pdf.fonttype": 42,
+}
+# R's pch symbols 1, 2, 0, 5, 6 (open circle, triangle, square, diamond, inverted triangle).
+R_POLICY_STYLE: dict[str, tuple[str, str]] = {
+    "s1_ask_all": ("black", "o"),
+    "s2_llm_agent": ("#DF536B", "^"),
+    "s3_bounds": ("#2297E6", "s"),
+    "s4_bounds_voi_echo": ("#61D04F", "D"),
+    "s3_bin": ("#CD0BBC", "v"),
+}
+
+
+def r_axes(ax: plt.Axes) -> None:
+    """Base-R axis conventions: y tick labels parallel to the axis (las = 0)."""
+    ax.tick_params(axis="y", labelrotation=90)
+    for label in ax.get_yticklabels():
+        label.set_verticalalignment("center")
+
+
+def r_grays(n: int) -> list[str]:
+    """R's gray.colors(n): grey levels from 0.3 to 0.9 (gamma 2.2)."""
+    if n == 1:
+        return ["#4D4D4D"]
+    levels = [(0.3**2.2 + (0.9**2.2 - 0.3**2.2) * i / (n - 1)) ** (1 / 2.2) for i in range(n)]
+    return ["#{0:02X}{0:02X}{0:02X}".format(round(255 * v)) for v in levels]
+
+
 # Reference categorical palette (light mode), fixed per policy.
 POLICY_STYLE: dict[str, tuple[str, str, str]] = {
     "s1_ask_all": ("#2a78d6", "o", "S1 ask-all"),

@@ -110,7 +110,7 @@ Notes that failed were regenerated up to twice (22 of 1,200 needed one retry, an
 **Extractors.**
 - An oracle that returns the documented facts exactly, as a perfect-extraction reference.
 - Claude Haiku 4.5, accessed through headless Claude Code (`claude -p`) with a replaced system prompt, all tools disabled and JSON-schema-constrained output. Confidence was self-reported.
-- Qwen3.5-9B (4-bit quantised), run locally through Ollama with a JSON schema, thinking disabled, temperature 0, and a fixed seed. Confidence was taken from token log-probabilities as P(status tokens) × P(value tokens).
+- Qwen3.5-9B [@qwen35] (4-bit quantised), run locally through Ollama [@ollama] with a JSON schema, thinking disabled, temperature 0, and a fixed seed. Confidence was taken from token log-probabilities as P(status tokens) × P(value tokens).
 
 **Calibration.** Temperature scaling [@guo2017calibration] and isotonic regression [@zadrozny2002isotonic] were fitted on a seeded 30% development split per calculator and evaluated on the remainder. S4 used isotonic calibration.
 
@@ -242,7 +242,7 @@ A frontier end-to-end agent was a strong baseline. Under ideal conditions it was
 ### 4.2 Relation to prior work
 ClinDet-Bench [@watanabe2026clindet] formalises the same determinacy question over score ranges and shows that LLMs both commit prematurely and over-abstain. Our work adds the question-asking step and a comparison with an agent that can ask. MediQ, AgentClinic and CRAFT-MD [@li2024mediq; @schmidgall2024agentclinic; @johri2025craftmd] evaluate information-seeking diagnostic dialogue rather than calculators.
 
-MedCalc-Bench and its audits [@khandekar2024medcalc; @ye2025stewardship; @krohngrimberghe2026audit] evaluate one-shot score computation. Our real-note analysis suggests that its missing-equals-normal convention substantially overstates how often a score can safely be computed from the note alone. The design connects to active feature acquisition, selective prediction, and partial evaluation of rules over unknown inputs. Healthcare standards for executable guidelines (CQL, FHIR Clinical Practice Guidelines) would be a natural host for the determinacy check.
+MedCalc-Bench and its audits [@khandekar2024medcalc; @ye2025stewardship; @krohngrimberghe2026audit] evaluate one-shot score computation. Our real-note analysis suggests that its missing-equals-normal convention substantially overstates how often a score can safely be computed from the note alone. The design connects to active feature acquisition [@saartsechansky2009active], selective prediction [@geifman2017selective], and partial evaluation of rules over unknown inputs [@jones1993partial]. Healthcare standards for executable guidelines, Clinical Quality Language [@hl7cql] and FHIR Clinical Practice Guidelines [@hl7cpg], would be a natural host for the determinacy check.
 
 ### 4.3 Limitations
 - **Synthetic notes.** The main cohort's notes were generated and validated by LLMs from the same family as the Claude extractor. An exploratory analysis of 46 cases with notes from both Sonnet and Qwen suggested a small same-family advantage (+3.2 points, 95% CI 0.4–6.4). Synthetic notes are also more complete and cleaner than real ones, as the real-note analysis shows, so absolute accuracies are optimistic. Differences in question counts and safety are the more transferable results.

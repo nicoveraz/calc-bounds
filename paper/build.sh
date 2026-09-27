@@ -124,7 +124,7 @@ tex = re.sub(r"(\\begin\{longtable\}.*?\\end\{longtable\})", lambda m: "{\\footn
 path.write_text(tex, encoding="utf8")
 PY
 cp refs.bib build/arxiv/
-cp figures/*.pdf figures/figS5_reliability.png build/arxiv/figures/
+cp figures/*.pdf build/arxiv/figures/
 (cd build/arxiv && tectonic -X compile main.tex --keep-intermediates >/dev/null 2>&1)
 [ -f build/arxiv/main.bbl ] || { echo "FAIL: main.bbl was not produced"; exit 1; }
 rm -f arxiv_source.zip

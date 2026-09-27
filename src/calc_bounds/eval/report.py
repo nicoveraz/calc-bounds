@@ -52,35 +52,46 @@ def reweight(by_cov: pd.DataFrame, shares: dict[str, float], metric: str) -> pd.
 
 
 def reliability_figure(claims: dict[str, pd.DataFrame], out: Path) -> None:
+    """Reliability diagram of raw extraction confidence (base-R look, as the paper figures).
+    Writes `out` (PNG) and the same figure as PDF next to it."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, ax = plt.subplots(figsize=(5, 5), facecolor="white")
-    ax.plot([0, 1], [0, 1], color="#e4e3dc", linewidth=1)
-    colors = {"haiku": "#2a78d6", "qwen_local": "#eb6834"}
-    for name, df in claims.items():
-        d = df[df["confidence"].notna()]
-        bins = np.minimum((d["confidence"] * 10).astype(int), 9)
-        g = d.groupby(bins).agg(
-            conf=("confidence", "mean"), acc=("correct", "mean"), n=("correct", "size")
-        )
-        ax.plot(
-            g["conf"],
-            g["acc"],
-            marker="o",
-            linewidth=2,
-            markersize=6,
-            color=colors.get(name, "#6b6a63"),
-            label=f"{name} (raw)",
-        )
-    ax.set_xlabel("Confidence", color="#6b6a63")
-    ax.set_ylabel("Accuracy of claim", color="#6b6a63")
-    ax.set_title("Reliability of extraction confidence (raw)", loc="left", fontsize=10)
-    ax.legend(frameon=False, fontsize=8)
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    fig.tight_layout()
-    fig.savefig(out, dpi=150)
-    plt.close(fig)
+    from calc_bounds.eval.plots import R_RC, r_axes
+
+    names = {"haiku": "Claude Haiku 4.5", "qwen_local": "Qwen3.5-9B"}
+    styles = {"haiku": ("#2297E6", "o", "-"), "qwen_local": ("#DF536B", "^", "--")}
+    with matplotlib.rc_context(R_RC):
+        fig, ax = plt.subplots(figsize=(4.5, 4.5))
+        ax.plot([0, 1], [0, 1], color="gray", linewidth=0.8, linestyle=":")
+        for name, df in claims.items():
+            d = df[df["confidence"].notna()]
+            bins = np.minimum((d["confidence"] * 10).astype(int), 9)
+            g = d.groupby(bins).agg(
+                conf=("confidence", "mean"), acc=("correct", "mean"), n=("correct", "size")
+            )
+            color, marker, line = styles.get(name, ("black", "s", "-"))
+            ax.plot(
+                g["conf"],
+                g["acc"],
+                marker=marker,
+                markerfacecolor="none",
+                linestyle=line,
+                linewidth=1,
+                markersize=5,
+                color=color,
+                label=names.get(name, name),
+            )
+        ax.set_xlim(0, 1.02)
+        ax.set_ylim(0, 1.02)
+        ax.set_xlabel("Confidence")
+        ax.set_ylabel("Accuracy of claim")
+        ax.set_title("Reliability of raw extraction confidence")
+        ax.legend(fontsize=8, loc="center left")
+        r_axes(ax)
+        fig.tight_layout()
+        fig.savefig(out, dpi=300)
+        fig.savefig(out.with_suffix(".pdf"))
+        plt.close(fig)

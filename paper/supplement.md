@@ -30,7 +30,7 @@ S4 asks the clinician to confirm a decision-critical extracted value when its ca
 
 Present/absent claims; isotonic and temperature calibration fitted on a seeded 30% development split, evaluated on the rest. Haiku 4.5 (self-reported): ECE 0.014 raw, 0.003 temperature, 0.002 isotonic. Qwen3.5-9B (token log-probabilities): ECE 0.048 raw, 0.033 temperature, 0.002 isotonic.
 
-![Reliability of raw extraction confidence (test split).](figures/figS5_reliability.png)
+![Reliability of raw extraction confidence (test split).](figures/figS5_reliability.pdf)
 
 ## S6. Full results grid (559 paired cases; both extractors, both note styles, both clinicians)
 

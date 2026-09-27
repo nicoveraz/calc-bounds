@@ -21,7 +21,7 @@ import pandas as pd
 
 from calc_bounds.cohort import PatientCase
 from calc_bounds.eval import metrics
-from calc_bounds.eval.plots import GRID, INK, MUTED, POLICY_STYLE
+from calc_bounds.eval.plots import R_POLICY_STYLE, R_RC, r_axes, r_grays
 from calc_bounds.eval.stats import paired_comparison
 from calc_bounds.io import read_jsonl
 from calc_bounds.policies import Trace
@@ -341,52 +341,42 @@ def implausible_sensitivity(run: Path, cases: list[PatientCase]) -> pd.DataFrame
 # --- figures --------------------------------------------------------------------------------
 
 
-def _axes(ax: plt.Axes) -> None:
-    ax.grid(True, color=GRID, linewidth=0.8)
-    ax.set_axisbelow(True)
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    for side in ("left", "bottom"):
-        ax.spines[side].set_color(MUTED)
-    ax.tick_params(colors=MUTED, labelsize=8)
-
-
 def _save(fig: plt.Figure, out: Path, name: str) -> None:
     fig.tight_layout()
     for ext in ("png", "pdf"):
-        fig.savefig(out / f"{name}.{ext}", dpi=200)
+        fig.savefig(out / f"{name}.{ext}", dpi=300)
     plt.close(fig)
 
 
 def fig_tradeoff(tables: dict[str, pd.DataFrame], out: Path) -> None:
     """Accuracy vs questions, one panel per condition (Haiku extraction), on a shared y-axis so
     that small differences are not visually exaggerated."""
-    fig, axes = plt.subplots(
-        1, len(tables), figsize=(4.2 * len(tables), 3.6), facecolor="white", sharey=True
-    )
+    fig, axes = plt.subplots(1, len(tables), figsize=(4.2 * len(tables), 3.8), sharey=True)
     lows = [100 * t.groupby("policy")["correct"].mean().min() for t in tables.values()]
     for ax, (title, t) in zip(np.atleast_1d(axes), tables.items(), strict=True):
         for pol in POLICY_ORDER:
             g = t[t["policy"] == pol]
-            color, marker, _ = POLICY_STYLE[pol]
+            color, marker = R_POLICY_STYLE[pol]
             ax.scatter(
                 g["n_questions"].mean(),
                 100 * g["correct"].mean(),
-                s=70,
-                color=color,
+                s=45,
+                facecolors="none",
+                edgecolors=color,
                 marker=marker,
-                edgecolors="white",
-                linewidths=1.5,
+                linewidths=1.2,
                 zorder=3,
                 label=POLICY_NAME[pol],
             )
-        ax.set_title(title, loc="left", fontsize=10, color=INK)
-        ax.set_xlabel("Mean questions per case", color=MUTED, fontsize=9)
-        ax.set_ylabel("Decision-category accuracy, %", color=MUTED, fontsize=9)
+        ax.set_title(title)
+        ax.set_xlabel("Mean questions per case")
+        ax.set_ylabel("Decision-category accuracy (%)")
         ax.set_xlim(-0.1, 2.3)
-        ax.set_ylim(5 * math.floor((min(lows) - 2) / 5), 100.5)
-        _axes(ax)
-    np.atleast_1d(axes)[-1].legend(frameon=False, fontsize=7.5, loc="upper right")
+        ymin = 5 * math.floor((min(lows) - 2) / 5)
+        ax.set_ylim(ymin, 101)
+        ax.set_yticks(range(ymin, 101, 5))
+        r_axes(ax)
+    np.atleast_1d(axes)[0].legend(fontsize=7.5, loc="lower right")
     _save(fig, out, "fig2_accuracy_vs_questions")
 
 
@@ -394,11 +384,12 @@ def fig_safety(tables: dict[str, pd.DataFrame], out: Path) -> None:
     """Under- and over-triage (conservative fallback) by system and condition."""
     conds = list(tables)
     pols = POLICY_ORDER
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3.8), facecolor="white", sharey=False)
+    fills = r_grays(len(pols))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.0), sharey=False)
     width = 0.8 / len(pols)
     for ax, col, title in [
-        (axes[0], "under_triage", "Under-triage (decision lower-risk than truth)"),
-        (axes[1], "over_triage", "Over-triage (decision higher-risk than truth)"),
+        (axes[0], "under_triage", "Under-triage (lower risk than truth)"),
+        (axes[1], "over_triage", "Over-triage (higher risk than truth)"),
     ]:
         for i, pol in enumerate(pols):
             vals, errs = [], [[], []]
@@ -410,27 +401,27 @@ def fig_safety(tables: dict[str, pd.DataFrame], out: Path) -> None:
                 vals.append(v)
                 errs[0].append(v - 100 * lo)
                 errs[1].append(100 * hi - v)
-            color, _, _ = POLICY_STYLE[pol]
             x = np.arange(len(conds)) + (i - (len(pols) - 1) / 2) * width
-            ax.bar(x, vals, width=width * 0.92, color=color, label=POLICY_NAME[pol])
-            ax.errorbar(x, vals, yerr=errs, fmt="none", ecolor=MUTED, elinewidth=0.8, capsize=2)
+            ax.bar(
+                x,
+                vals,
+                width=width,
+                color=fills[i],
+                edgecolor="black",
+                linewidth=0.6,
+                label=POLICY_NAME[pol],
+            )
+            ax.errorbar(x, vals, yerr=errs, fmt="none", ecolor="black", elinewidth=0.7, capsize=2)
         ax.set_xticks(np.arange(len(conds)), conds, fontsize=8)
-        ax.set_ylabel("% of cases", color=MUTED, fontsize=9)
-        ax.set_title(title, loc="left", fontsize=10, color=INK)
-        _axes(ax)
+        ax.set_ylabel("Cases (%)")
+        ax.set_ylim(bottom=0)
+        ax.set_title(title)
+        r_axes(ax)
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(
-        handles,
-        labels,
-        frameon=False,
-        fontsize=8,
-        loc="lower center",
-        ncol=len(pols),
-        bbox_to_anchor=(0.5, -0.02),
-    )
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    fig.legend(handles, labels, fontsize=8, loc="lower center", ncol=len(pols))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     for ext in ("png", "pdf"):
-        fig.savefig(out / f"fig3_safety_triage.{ext}", dpi=200)
+        fig.savefig(out / f"fig3_safety_triage.{ext}", dpi=300)
     plt.close(fig)
 
 
@@ -442,28 +433,41 @@ def fig_real_notes(run: Path, out: Path) -> None:
         100 * d.loc[d.calculator == c, "medcalc_convention_category_correct"].mean() for c in order
     ]
     n = [int((d.calculator == c).sum()) for c in order]
-    fig, ax = plt.subplots(figsize=(7, 3.6), facecolor="white")
+    dark, light = r_grays(2)
+    fig, ax = plt.subplots(figsize=(7, 3.8))
     x = np.arange(len(order))
-    ax.bar(x - 0.2, det, width=0.38, color="#2a78d6", label="Category determined from the note")
-    ax.bar(x + 0.2, conv, width=0.38, color="#eb6834", label="Category correct if missing = normal")
+    ax.bar(
+        x - 0.2,
+        det,
+        width=0.4,
+        color=dark,
+        edgecolor="black",
+        linewidth=0.6,
+        label="Category determined from the note",
+    )
+    ax.bar(
+        x + 0.2,
+        conv,
+        width=0.4,
+        color=light,
+        edgecolor="black",
+        linewidth=0.6,
+        label="Category correct if missing = normal",
+    )
     ax.set_xticks(
-        x, [f"{CALC_NAME[c]}\n(n={k})" for c, k in zip(order, n, strict=True)], fontsize=8
+        x, [f"{CALC_NAME[c]}\n(n = {k})" for c, k in zip(order, n, strict=True)], fontsize=8
     )
-    ax.set_ylabel("% of real case reports", color=MUTED, fontsize=9)
-    ax.set_ylim(0, 105)
-    ax.set_title(
-        "Real notes (MedCalc-Bench Verified, train split; Haiku extraction)",
-        loc="left",
-        fontsize=10,
-        color=INK,
-    )
-    ax.legend(frameon=False, fontsize=8, loc="upper right")
-    _axes(ax)
+    ax.set_ylabel("Real case reports (%)")
+    ax.set_ylim(0, 115)
+    ax.set_yticks(range(0, 101, 20))
+    ax.set_title("Real notes (MedCalc-Bench Verified, training split)")
+    ax.legend(fontsize=8, loc="upper right")
+    r_axes(ax)
     _save(fig, out, "fig4_real_notes")
 
 
 def fig_pipeline(out: Path) -> None:
-    fig, ax = plt.subplots(figsize=(10, 2.4), facecolor="white")
+    fig, ax = plt.subplots(figsize=(10, 2.4))
     ax.axis("off")
     steps = [
         "Clinical note",
@@ -475,20 +479,28 @@ def fig_pipeline(out: Path) -> None:
     w, gap = 0.16, 0.045
     xs = [0.01 + i * (w + gap) for i in range(len(steps))]
     for x, text in zip(xs, steps, strict=True):
-        ax.add_patch(plt.Rectangle((x, 0.18), w, 0.56, facecolor="#f4f3ee", edgecolor=MUTED))
-        ax.text(x + w / 2, 0.46, text, ha="center", va="center", fontsize=8, color=INK)
+        ax.add_patch(
+            plt.Rectangle((x, 0.18), w, 0.56, facecolor="white", edgecolor="black", linewidth=0.8)
+        )
+        ax.text(x + w / 2, 0.46, text, ha="center", va="center", fontsize=8)
     for x in xs[:-1]:
         ax.annotate(
             "",
             xy=(x + w + gap - 0.004, 0.46),
             xytext=(x + w + 0.004, 0.46),
-            arrowprops={"arrowstyle": "->", "color": MUTED},
+            arrowprops={"arrowstyle": "->", "color": "black", "linewidth": 0.8},
         )
     ax.annotate(
         "",
         xy=(xs[2] + w / 2, 0.76),
         xytext=(xs[3] + w / 2, 0.76),
-        arrowprops={"arrowstyle": "->", "color": "#eb6834", "connectionstyle": "arc3,rad=0.35"},
+        arrowprops={
+            "arrowstyle": "->",
+            "color": "black",
+            "linewidth": 0.8,
+            "linestyle": "--",
+            "connectionstyle": "arc3,rad=0.35",
+        },
     )
     ax.text(
         (xs[2] + xs[3] + w) / 2,
@@ -496,7 +508,7 @@ def fig_pipeline(out: Path) -> None:
         "clinician's answer updates the bounds",
         ha="center",
         fontsize=7.5,
-        color="#eb6834",
+        style="italic",
     )
     ax.set_xlim(0, 1)
     ax.set_ylim(0.1, 1.02)
@@ -627,6 +639,7 @@ def build(run: Path, out: Path, calcs: dict) -> dict[str, object]:
         df.to_csv(tables_dir / f"{name}.csv", index=False)
         (tables_dir / f"{name}.md").write_text(to_markdown(df))
 
+    matplotlib.rcParams.update(R_RC)
     fig_pipeline(figs)
     fig_tradeoff(
         {
@@ -640,4 +653,5 @@ def build(run: Path, out: Path, calcs: dict) -> dict[str, object]:
     import shutil
 
     shutil.copy(run / "report" / "reliability.png", figs / "figS5_reliability.png")
+    shutil.copy(run / "report" / "reliability.pdf", figs / "figS5_reliability.pdf")
     return {"tables": sorted(outputs), "messy_validated_cases": len(messy_ok)}

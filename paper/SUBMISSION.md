@@ -33,7 +33,7 @@ CC BY 4.0
 
 ## Comments
 ```
-32 pages, 5 figures, 4 tables, supplementary material included. Code: https://github.com/nicoveraz/calc-bounds
+33 pages, 5 figures, 4 tables, supplementary material included. Code: https://github.com/nicoveraz/calc-bounds
 ```
 arXiv does not allow editing Comments after announcement without a new version, so check it now.
 
