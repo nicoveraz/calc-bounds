@@ -385,14 +385,18 @@ def _dotchart(
 ) -> None:
     """Base-R `dotchart` layout: policies as rows, one panel per measure, one symbol per
     condition (filled: ideal clinician; open: noisy; circle: clean notes; triangle: messy).
-    With `ci`, each measure is a 0/1 column and Wilson 95% intervals are drawn as thin lines;
-    the conditions are then offset vertically within each row so the lines do not overlap."""
+    Each condition has its own thin lane within a policy's row, so symbols never overlap; thin
+    lines separate the policies. With `ci`, each measure is a 0/1 column and Wilson 95%
+    intervals are drawn as thin lines along the lanes."""
     pols = list(reversed(POLICY_ORDER))  # dotchart draws the first row at the top
     fig, axes = plt.subplots(1, len(panels), figsize=(9, 3.4), sharey=True)
-    offsets = [0.24, 0.08, -0.08, -0.24] if ci else [0.0] * len(CONDITIONS)
+    offsets = [0.27, 0.09, -0.09, -0.27]
     for ax, (xlabel, measure, xlim, xticks) in zip(axes, panels, strict=True):
         for y in range(len(pols)):
-            ax.axhline(y, color="gray", linestyle=":", linewidth=0.7, zorder=0)
+            for off in offsets:
+                ax.axhline(y + off, color="gray", linestyle=":", linewidth=0.5, zorder=0)
+            if y:
+                ax.axhline(y - 0.5, color="gray", linewidth=0.5, zorder=0)
         for off, (label, (key, marker, filled)) in zip(offsets, CONDITIONS.items(), strict=True):
             t = tables[key]
             ys = [y + off for y in range(len(pols))]
@@ -418,7 +422,7 @@ def _dotchart(
         ax.set_xlabel(xlabel)
         ax.set_xlim(*xlim)
         ax.set_xticks(xticks)
-        ax.set_ylim(-0.6, len(pols) - 0.4)
+        ax.set_ylim(-0.5, len(pols) - 0.5)
     axes[0].set_yticks(range(len(pols)), [SHORT_NAME[p] for p in pols])
     for ax in axes[1:]:
         ax.tick_params(axis="y", length=0)
