@@ -136,6 +136,18 @@ def traces_path(cfg: RunConfig) -> Path:
     return run_dir(cfg) / "traces" / f"{extraction_label(cfg)}.jsonl"
 
 
+def _drop_failed_notes(cfg: RunConfig, cases: list[PatientCase]) -> list[PatientCase]:
+    """Primary analysis excludes cases whose note still fails validation after all render
+    attempts (never silently: the render stats report them)."""
+    render = cfg.extraction.render
+    if render is None or not notes_path(cfg, render).exists():
+        return cases
+    failed = {
+        n.case_id for n in read_jsonl(notes_path(cfg, render), RenderedNote) if n.validation_failed
+    }
+    return [c for c in cases if c.case_id not in failed]
+
+
 def run_policies(cfg: RunConfig) -> Path:
     """Run the configured policies. Code policies run per case; the S2 agent runs in parallel
     across cases (its turns within a case are sequential LLM calls)."""
@@ -147,6 +159,7 @@ def run_policies(cfg: RunConfig) -> Path:
     extractor = _extractor(cfg, cases)
     if isinstance(extractor, PrecomputedExtractor):  # e.g. a pilot subset
         cases = [c for c in cases if c.case_id in extractor.results]
+    cases = _drop_failed_notes(cfg, cases)
     policies = make_policies(cfg)
     missing = [p for p in cfg.policies if p not in policies]
     if missing:
