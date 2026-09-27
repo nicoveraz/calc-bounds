@@ -147,6 +147,18 @@ def _describe_answer(calc: Calculator, pid: ParamId, value: Value | None) -> str
     return f"Clinician: {pid} = {text}."
 
 
+def reference_known(case: PatientCase, calc: Calculator) -> dict:
+    """What the note actually determines: documented facts, except comorbidities conveyed only
+    through a medication (e.g. lisinopril), which the note does not determine."""
+    from calc_bounds.cohort import TrapKind
+
+    known = from_extractions(calc, oracle_extractions(calc.parameters, case.truth, case.documented))
+    for t in case.traps:
+        if t.kind == TrapKind.COMORBIDITY_VIA_MEDICATION:
+            known.pop(t.param, None)
+    return known
+
+
 class LLMAgentPolicy:
     id = "s2_llm_agent"
 
@@ -178,9 +190,7 @@ class LLMAgentPolicy:
     ) -> Trace:
         # What is truly known: documented facts (+ answers), for premature-commitment and
         # irrelevant-question accounting. The agent itself never sees this structure.
-        known = from_extractions(
-            calc, oracle_extractions(calc.parameters, case.truth, case.documented)
-        )
+        known = reference_known(case, calc)
         messages: list[dict[str, Any]] = [{"role": "user", "content": initial_prompt(note, calc)}]
         steps: list[Step] = []
         usage = Usage()

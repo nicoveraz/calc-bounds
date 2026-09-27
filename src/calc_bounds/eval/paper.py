@@ -286,6 +286,58 @@ def compact_tables(full: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     return {"table2_compact": t2, "table3_compact": t3, "table4_compact": t4}
 
 
+HEART_RISK_FACTORS = [
+    "hypertension",
+    "hypercholesterolemia",
+    "diabetes",
+    "obesity",
+    "smoking",
+    "family_history_cad",
+]
+
+
+def implausible_cases(cases: list[PatientCase]) -> dict[str, str]:
+    """Cases whose independently sampled characteristics look clinically implausible."""
+    out: dict[str, str] = {}
+    for c in cases:
+        if c.calculator != "heart":
+            continue
+        n_rf = sum(bool(c.truth[r]) for r in HEART_RISK_FACTORS)
+        if c.truth["atherosclerotic_disease"] and n_rf == 0:
+            out[c.case_id] = "established atherosclerotic disease with no risk factors"
+        elif c.truth["age"] < 40 and (n_rf >= 3 or c.truth["atherosclerotic_disease"]):
+            out[c.case_id] = "age < 40 with >= 3 risk factors or atherosclerotic disease"
+    return out
+
+
+def implausible_sensitivity(run: Path, cases: list[PatientCase]) -> pd.DataFrame:
+    flags = implausible_cases(cases)
+    rows = []
+    for label, name in [
+        ("oracle", "Oracle"),
+        ("haiku__sonnet", "Haiku 4.5"),
+        ("qwen_local__sonnet", "Qwen3.5-9B"),
+    ]:
+        t = load_table(run, label, cases)
+        for subset, g in [("all", t), ("excluding flagged", t[~t["case_id"].isin(flags)])]:
+            for pol in POLICY_ORDER:
+                h = g[g["policy"] == pol]
+                rows.append(
+                    {
+                        "Extraction": name,
+                        "Cases": subset,
+                        "System": POLICY_NAME[pol],
+                        "n": len(h),
+                        "Accuracy, %": f"{100 * h['correct'].mean():.1f}",
+                        "Under-triage, %": f"{100 * h['under_triage'].mean():.1f}",
+                        "Questions/case": f"{h['n_questions'].mean():.2f}",
+                    }
+                )
+    df = pd.DataFrame(rows)
+    df.attrs["n_flagged"] = len(flags)
+    return df
+
+
 # --- figures --------------------------------------------------------------------------------
 
 
@@ -563,6 +615,13 @@ def build(run: Path, out: Path, calcs: dict) -> dict[str, object]:
     }
     outputs |= compact_tables(outputs)
     outputs |= supplement_tables(run, calcs, cases)
+    outputs["s10_implausible_sensitivity"] = implausible_sensitivity(run, cases)
+    flags = implausible_cases(cases)
+    (tables_dir / "s10_flagged_cases.md").write_text(
+        f"{len(flags)} of {len(cases)} cases flagged: "
+        + "; ".join(f"{k} ({v})" for k, v in sorted(flags.items()))
+        + "\n"
+    )
     prompt_examples(calcs, cases, tables_dir)
     for name, df in outputs.items():
         df.to_csv(tables_dir / f"{name}.csv", index=False)

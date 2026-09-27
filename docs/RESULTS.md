@@ -42,7 +42,7 @@ committed). The Spanish (es-CL) arm is paused.
 | Qwen 9B | S3 | 99.8% | 1.23 | 0% | 0% | 0.006 |
 | Qwen 9B | S4 | 99.8% | 1.20 | 0% | 0% | 0.006 |
 | Qwen 9B | S3-bin | 91.2% | 0.26 | 0% | 49% | 1.42 |
-| (reads the note) | **S2 Opus agent** | 99.6% | 0.99 | 9.7% | 0.2% | — |
+| (reads the note) | **S2 Opus agent** | 99.6% | 0.99 | 9.5% | 0.2% | — |
 
 ## Hypotheses
 **H1: supported.** The bounds policy (S3) asks 44–48% fewer questions than ask-all with the
@@ -68,7 +68,7 @@ same accuracy, for every extraction source.
 
 **H2: partly supported.** The Opus agent is strong: 99.6% accuracy with 0.99 questions per
 case.
-- **It does over-ask.** 9.7% of its questions cannot change the decision, versus 0% for S3.
+- **It does over-ask.** 9.5% of its questions cannot change the decision, versus 0% for S3.
   It asks significantly more questions than S3 (Wilcoxon p < 0.001).
 - **It rarely under-asks.** It committed while the category was still undetermined in 2 of
   1,200 cases. One of those guesses was wrong.

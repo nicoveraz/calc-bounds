@@ -48,6 +48,14 @@ Paired subset (n = 559):
 
 {{table:table6_real_notes}}
 
+## S10. Sensitivity to implausible synthetic cases
+
+Characteristics were sampled independently, so some cases are clinically implausible. We flagged established atherosclerotic disease with no risk factors, and age under 40 with three or more risk factors or atherosclerotic disease. We then recomputed the main results without those cases (clean notes, ideal clinician).
+
+{{file:tables/s10_flagged_cases.md}}
+
+{{table:s10_implausible_sensitivity}}
+
 ## S9. Exact prompts
 
 Prompt versions: renderer v3, extractor x1, agent a1. The example fact sheet is for one CURB-65 case with a trap; `<the rendered note>` stands for the note text.

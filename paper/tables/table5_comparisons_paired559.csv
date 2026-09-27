@@ -12,7 +12,7 @@ Condition,Comparison,"Accuracy A vs B, %",Discordant (A only / B only),McNemar p
 "Haiku, messy notes, ideal clinician",S3 Bounds vs S3-bin (missing=normal),98.6 vs 90.7,46 / 2,<0.001,1.04 vs 0.30,<0.001
 "Haiku, messy notes, ideal clinician",S4 Bounds+VOI+echo vs S3 Bounds,99.1 vs 98.6,3 / 0,0.500,1.04 vs 1.04,0.933
 "Haiku, messy notes, noisy clinician",S3 Bounds vs S1 Ask-all,85.5 vs 85.5,0 / 0,1.000,1.08 vs 1.92,<0.001
-"Haiku, messy notes, noisy clinician",S3 Bounds vs S2 LLM agent,85.5 vs 85.0,30 / 27,1.000,1.08 vs 0.97,0.028
+"Haiku, messy notes, noisy clinician",S3 Bounds vs S2 LLM agent,85.5 vs 85.0,30 / 27,1.000,1.08 vs 0.97,0.032
 "Haiku, messy notes, noisy clinician",S3 Bounds vs S3-bin (missing=normal),85.5 vs 86.8,33 / 40,1.000,1.08 vs 0.31,<0.001
 "Haiku, messy notes, noisy clinician",S4 Bounds+VOI+echo vs S3 Bounds,85.9 vs 85.5,3 / 1,1.000,1.11 vs 1.08,0.048
 "Qwen, clean notes, ideal clinician",S3 Bounds vs S1 Ask-all,99.8 vs 99.8,0 / 0,1.000,1.17 vs 2.15,<0.001
