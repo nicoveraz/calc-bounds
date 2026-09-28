@@ -1,5 +1,7 @@
 # calc-bounds
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23004726.svg)](https://doi.org/10.5281/zenodo.23004726)
+
 **Unknown is not normal.** When a clinical note does not mention a finding, that does not mean
 the finding is absent. This project tests a safer way to use AI for clinical risk scores
 (HEART, CURB-65, qSOFA, PERC, Wells, Cockcroft-Gault):
@@ -105,4 +107,4 @@ scripts/           reproduce_paper.sh
 ```
 
 ## License and citation
-Code: [MIT](LICENSE). Citation: see [`CITATION.cff`](CITATION.cff). MedCalc-Bench data is not included (CC-BY-SA 4.0; see `docs/ANCHOR.md`).
+Code: [MIT](LICENSE). Archived at Zenodo: [10.5281/zenodo.23004726](https://doi.org/10.5281/zenodo.23004726). Citation: see [`CITATION.cff`](CITATION.cff). MedCalc-Bench data is not included (CC-BY-SA 4.0; see `docs/ANCHOR.md`).

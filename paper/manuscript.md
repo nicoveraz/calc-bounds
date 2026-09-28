@@ -37,7 +37,7 @@ We test a simple division of labour (Figure 1). A language model reads the note 
 
 **Real notes.** We used MedCalc-Bench Verified [@khandekar2024medcalc] and its label audits [@ye2025stewardship; @krohngrimberghe2026audit] for the five overlapping calculators: 100 test notes and a sample of 584 training notes (published, de-identified case reports; CC-BY-SA 4.0). We report whether our code reproduces the benchmark labels from its annotated inputs, how often the note determines the category, whether the truth stays within our bounds, and accuracy under the missing-equals-normal convention.
 
-**Implementation.** All runs cost $0 in API fees (Claude through a subscription; Qwen on a 16 GB laptop). Each run is one configuration file with a fixed seed, and every model call is cached, so all tables and figures regenerate without new model calls. Code: https://github.com/nicoveraz/calc-bounds (MIT licence).
+**Implementation.** All runs cost $0 in API fees (Claude through a subscription; Qwen on a 16 GB laptop). Each run is one configuration file with a fixed seed, and every model call is cached, so all tables and figures regenerate without new model calls. Code: https://github.com/nicoveraz/calc-bounds (MIT licence; archived at https://doi.org/10.5281/zenodo.23004726).
 
 ## 3. Results
 
@@ -70,7 +70,7 @@ ClinDet-Bench [@watanabe2026clindet] poses the same determinacy question over sc
 
 ## Declarations
 
-**Data and code.** Code: https://github.com/nicoveraz/calc-bounds (MIT licence). The synthetic cohort is regenerated from the configuration and seed; notes, extractions and the model-response cache are not released, and re-running regenerates them (model outputs may differ slightly). MedCalc-Bench Verified is available from its authors. **Funding:** none. **Competing interests:** none. **Use of AI:** LLMs generated the synthetic notes and served as extractors, judge and agent; code and analysis were developed with AI assistance (Claude Code). **Ethics:** synthetic data and published de-identified case reports only; no ethics review was required.
+**Data and code.** Code: https://github.com/nicoveraz/calc-bounds (MIT licence), archived at Zenodo, https://doi.org/10.5281/zenodo.23004726. The synthetic cohort is regenerated from the configuration and seed; notes, extractions and the model-response cache are not released, and re-running regenerates them (model outputs may differ slightly). MedCalc-Bench Verified is available from its authors. **Funding:** none. **Competing interests:** none. **Use of AI:** LLMs generated the synthetic notes and served as extractors, judge and agent; code and analysis were developed with AI assistance (Claude Code). **Ethics:** synthetic data and published de-identified case reports only; no ethics review was required.
 
 ## References
 

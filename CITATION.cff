@@ -10,4 +10,12 @@ version: "1.0.0"
 date-released: "2026-09-27"
 license: MIT
 repository-code: "https://github.com/nicoveraz/calc-bounds"
+doi: "10.5281/zenodo.23004726"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23004726"
+    description: "Zenodo concept DOI (all versions)"
+  - type: doi
+    value: "10.5281/zenodo.23004727"
+    description: "Zenodo DOI of v1.0.0"
 # TO CONFIRM: preferred-citation (arXiv ID once available)

@@ -33,7 +33,7 @@ CC BY 4.0
 
 ## Comments
 ```
-15 pages (8 of main text), 5 figures, 2 tables, appendix included; full supplementary material in the code repository. Code: https://github.com/nicoveraz/calc-bounds
+14 pages (7 of main text), 5 figures, 2 tables, appendix included; full supplementary material in the code repository. Code: https://github.com/nicoveraz/calc-bounds (archived: https://doi.org/10.5281/zenodo.23004726)
 ```
 arXiv does not allow editing Comments after announcement without a new version, so check it now.
 
