@@ -1,5 +1,6 @@
 # calc-bounds
 
+[![arXiv](https://img.shields.io/badge/arXiv-2609.34112-b31b1b.svg)](https://arxiv.org/abs/2609.34112)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23004726.svg)](https://doi.org/10.5281/zenodo.23004726)
 
 **Unknown is not normal.** When a clinical note does not mention a finding, that does not mean
@@ -13,7 +14,7 @@ the finding is absent. This project tests a safer way to use AI for clinical ris
 3. **It asks only what matters.** If a missing item could change the decision, it asks the
    clinician about that item and nothing else.
 
-Code for Paper 1 (draft: [`paper/manuscript.md`](paper/manuscript.md)).
+Code for the paper [arXiv:2609.34112](https://arxiv.org/abs/2609.34112) (source: [`paper/manuscript.md`](paper/manuscript.md)).
 
 ## Main results in plain language
 Tested on 1,200 synthetic emergency patients, with a simulated clinician answering questions.
@@ -107,4 +108,4 @@ scripts/           reproduce_paper.sh
 ```
 
 ## License and citation
-Code: [MIT](LICENSE). Archived at Zenodo: [10.5281/zenodo.23004726](https://doi.org/10.5281/zenodo.23004726). Citation: see [`CITATION.cff`](CITATION.cff). MedCalc-Bench data is not included (CC-BY-SA 4.0; see `docs/ANCHOR.md`).
+Paper: [arXiv:2609.34112](https://arxiv.org/abs/2609.34112). Code: [MIT](LICENSE). Archived at Zenodo: [10.5281/zenodo.23004726](https://doi.org/10.5281/zenodo.23004726). Citation: see [`CITATION.cff`](CITATION.cff). MedCalc-Bench data is not included (CC-BY-SA 4.0; see `docs/ANCHOR.md`).

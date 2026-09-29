@@ -2,18 +2,34 @@
   "title": "calc-bounds: separating language-model extraction from rule-based decision logic for clinical risk scores",
   "upload_type": "software",
   "creators": [
-    {"name": "Vera Zúñiga, Nicolás", "affiliation": "Independent Researcher, Chile"}
+    {
+      "name": "Vera Zúñiga, Nicolás",
+      "affiliation": "Independent Researcher, Chile"
+    }
   ],
   "license": "mit",
   "access_right": "open",
   "keywords": [
-    "large language models", "clinical risk scores", "clinical decision support",
-    "information extraction", "missing data", "question asking", "reproducibility"
+    "large language models",
+    "clinical risk scores",
+    "clinical decision support",
+    "information extraction",
+    "missing data",
+    "question asking",
+    "reproducibility"
   ],
   "related_identifiers": [
-    {"identifier": "https://github.com/nicoveraz/calc-bounds",
-     "relation": "isSupplementTo",
-     "scheme": "url"}
+    {
+      "identifier": "arXiv:2609.34112",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-preprint",
+      "scheme": "arxiv"
+    },
+    {
+      "identifier": "https://github.com/nicoveraz/calc-bounds",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
   ],
-  "description": "<p>Code for the paper <em>Unknown is not normal: separating language-model extraction from rule-based decision logic for clinical risk scores</em>. A language model reads a clinical note into facts marked present, absent or unknown, each with an exact evidence quote; deterministic code computes the range of scores still possible given the unknowns and asks the clinician only about inputs that could change the decision category. Six calculators (HEART, CURB-65, qSOFA, PERC, Wells, Cockcroft-Gault), a seeded synthetic cohort generator, note rendering and validation, extraction, five question-asking policies, a simulated clinician, evaluation and the scripts that regenerate every table and figure of the paper.</p><p>Only code is released. The synthetic notes, extractions and model-response cache are not included; the cohort is regenerated from the seed, and re-running the pipeline re-queries the models. MedCalc-Bench Verified, used as a real-note check, is not redistributed.</p>"
+  "description": "<p>Code for the paper <em>Unknown is not normal: separating language-model extraction from rule-based decision logic for clinical risk scores</em>. A language model reads a clinical note into facts marked present, absent or unknown, each with an exact evidence quote; deterministic code computes the range of scores still possible given the unknowns and asks the clinician only about inputs that could change the decision category. Six calculators (HEART, CURB-65, qSOFA, PERC, Wells, Cockcroft-Gault), a seeded synthetic cohort generator, note rendering and validation, extraction, five question-asking policies, a simulated clinician, evaluation and the scripts that regenerate every table and figure of the paper. Accompanies arXiv:2609.34112 (cs.CL).</p><p>Only code is released. The synthetic notes, extractions and model-response cache are not included; the cohort is regenerated from the seed, and re-running the pipeline re-queries the models. MedCalc-Bench Verified, used as a real-note check, is not redistributed.</p>"
 }

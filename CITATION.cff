@@ -6,8 +6,8 @@ authors:
     given-names: "Nicolás"
     affiliation: "Independent researcher, Chile"
     email: "nicovera@quetru.cl"
-version: "1.0.0"
-date-released: "2026-09-27"
+version: "1.0.1"
+date-released: "2026-09-29"
 license: MIT
 repository-code: "https://github.com/nicoveraz/calc-bounds"
 doi: "10.5281/zenodo.23004726"
@@ -18,4 +18,18 @@ identifiers:
   - type: doi
     value: "10.5281/zenodo.23004727"
     description: "Zenodo DOI of v1.0.0"
-# TO CONFIRM: preferred-citation (arXiv ID once available)
+preferred-citation:
+  type: article
+  title: "Unknown is not normal: separating language-model extraction from rule-based decision logic for clinical risk scores"
+  authors:
+    - family-names: "Vera Zúñiga"
+      given-names: "Nicolás"
+      affiliation: "Independent researcher, Chile"
+  year: 2026
+  journal: "arXiv preprint"
+  identifiers:
+    - type: other
+      value: "arXiv:2609.34112"
+    - type: doi
+      value: "10.48550/arXiv.2609.34112"
+  url: "https://arxiv.org/abs/2609.34112"

@@ -1,3 +1,12 @@
+# v1.0.1: arXiv:2609.34112
+
+Metadata only; no code or results changed since v1.0.0.
+- The paper is published as [arXiv:2609.34112](https://arxiv.org/abs/2609.34112) (cs.CL, cross-listed cs.AI).
+- README, `CITATION.cff` (preferred citation) and `.zenodo.json` now name the paper, so the
+  Zenodo record links to it.
+- The Zenodo concept DOI (10.5281/zenodo.23004726) is added to the paper source, README and
+  citation file; the v1.0.0 snapshot predates it.
+
 # v1.0.0: Paper 1 (arXiv submission)
 
 Code for *Unknown is not normal: separating language-model extraction from rule-based
