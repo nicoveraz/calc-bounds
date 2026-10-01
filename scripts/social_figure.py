@@ -1,11 +1,16 @@
-"""LinkedIn figure (1200 x 1500 px, 4:5 portrait), in English and Spanish.
+"""LinkedIn figure (1200 x 1500 px, 4:5 portrait), in English and Spanish: a frontier agent
+working alone (Claude Opus 5.5) versus a local model plus code (Qwen3.5-9B on a laptop + the
+bounds policy), on safety and cost.
 
-Numbers come from paper/tables/table_summary.csv (written by `calc-bounds paper`); nothing is
-hand-entered. Style follows the paper figures (base-R look). Output: paper/social/.
+All numbers are read from the run outputs in runs/main: the report summary, the per-case traces
+(agent token usage and time) and the usage ledger (local reading time). Nothing is hand-entered.
+Output: paper/social/.
 
     uv run python scripts/social_figure.py
 """
 
+import json
+import statistics
 from pathlib import Path
 
 import matplotlib
@@ -17,111 +22,189 @@ import pandas as pd
 from calc_bounds.eval.plots import R_RC
 
 ROOT = Path(__file__).resolve().parents[1]
+RUN = ROOT / "runs" / "main"
 OUT = ROOT / "paper" / "social"
-ALARM = "#DF536B"  # R 4 palette red: missing = normal
-OURS = "#2297E6"  # R 4 palette blue: bounds
+FRONTIER = "#6B6B6B"
+LOCAL = "#2297E6"  # R 4 palette blue
+
+
+def _jsonl(path: Path):
+    with path.open() as f:
+        for line in f:
+            yield json.loads(line)
+
+
+def measures() -> dict[str, tuple[float, float]]:
+    """(frontier agent, local model + bounds) for each measure; clean notes, 1,200 cases."""
+    s = pd.read_csv(RUN / "report" / "summary_all.csv").set_index(["extraction", "policy"])
+    ideal, noisy = "qwen_local__sonnet", "qwen_local__sonnet__noisy"
+
+    def pair(label: str, col: str, scale: float = 100.0) -> tuple[float, float]:
+        return (
+            scale * s.loc[(label, "s2_llm_agent"), col],
+            scale * s.loc[(label, "s3_bounds"), col],
+        )
+
+    agent_usage = [
+        r["usage"]
+        for r in _jsonl(RUN / "traces" / f"{ideal}.jsonl")
+        if r["policy"] == "s2_llm_agent" and r["usage"]
+    ]
+    tokens = statistics.mean(u["input_tokens"] + u["output_tokens"] for u in agent_usage)
+    agent_s = statistics.median(u["latency_s"] for u in agent_usage if u["latency_s"] > 0)
+    local_s = statistics.median(
+        r["latency_s"]
+        for r in _jsonl(RUN / "usage.jsonl")
+        if r["stage"] == "extract:qwen_local:sonnet" and not r["cached"] and r["latency_s"] > 0
+    )
+    return {
+        "accuracy": pair(ideal, "accuracy"),
+        "early": pair(noisy, "premature_commitment_rate"),
+        "irrelevant": pair(ideal, "irrelevant_question_rate"),
+        "under": pair(noisy, "under_triage_rate"),
+        "tokens": (tokens, 0.0),
+        "questions": pair(ideal, "mean_questions", 1.0),
+        "seconds": (agent_s, local_s),
+    }
+
 
 TEXT = {
     "en": {
-        "title": "Unknown is not normal",
-        "subtitle": "When a clinical note does not mention a finding,\n"
-        "the common convention is to assume it is normal.",
-        "names": {
-            "Missing = normal": "Assume missing\n= normal",
-            "Ask-all": "Ask about\neverything missing",
-            "Agent": "AI agent alone\n(Claude Opus 5.5)",
-            "Bounds": "AI reads, code decides,\nasks only what matters",
+        "title": "Frontier AI alone, or\nsmall local AI + code?",
+        "subtitle": "Same accuracy. The local pipeline is safer, and it\n"
+        "needs no paid model and no data leaving the computer.",
+        "cols": ("Frontier agent\nClaude Opus 5.5", "Local model + code\nQwen3.5-9B on a laptop"),
+        "safety": "SAFETY",
+        "cost": "COST",
+        "rows": {
+            "accuracy": "Correct risk group",
+            "early": "Answered before the\nanswer was settled*",
+            "irrelevant": "Questions that could not\nchange the decision",
+            "under": "Placed in a lower-risk\ngroup than the true one*",
+            "tokens": "Frontier-model tokens\nper patient",
+            "data": "Patient note leaves\nthe computer",
+            "questions": "Questions to the\nclinician per patient",
+            "seconds": "Seconds per patient\n(median)",
         },
-        "p1": "Patients placed in a lower-risk group than their true one",
-        "p1_note": "about 1 in 12",
-        "p2": "Questions to the clinician per patient",
-        "p2_note": "half of asking about everything, same accuracy",
-        "unit1": "%",
-        "foot": "Simulation: 1,200 synthetic emergency cases, about 30% of findings unmentioned,\n"
-        "Claude Haiku 4.5 reading the notes, clinician always answering correctly.",
+        "yes": "Yes",
+        "no": "No",
+        "sep": ",",
+        "dec": ".",
+        "pct": "%",
+        "foot": "Simulation: 1,200 synthetic emergency cases. *With a clinician who sometimes does\n"
+        "not know, misremembers or answers vaguely; other rows with a clinician who answers\n"
+        "correctly. Local reading time measured on an Apple M1 Pro laptop, 16 GB.",
         "cite": "Vera Zúñiga N. arXiv:2609.34112 · github.com/nicoveraz/calc-bounds",
     },
     "es": {
-        "title": "Desconocido no es normal",
-        "subtitle": "Cuando una nota clínica no menciona un hallazgo,\n"
-        "la convención habitual es asumir que es normal.",
-        "names": {
-            "Missing = normal": "Asumir faltante\n= normal",
-            "Ask-all": "Preguntar por\ntodo lo faltante",
-            "Agent": "Agente de IA solo\n(Claude Opus 5.5)",
-            "Bounds": "La IA lee, el código decide,\npregunta solo lo necesario",
+        "title": "¿IA de frontera sola, o\nIA local pequeña + código?",
+        "subtitle": "Misma precisión. La alternativa local es más segura,\n"
+        "sin modelo pagado y sin que los datos salgan del equipo.",
+        "cols": (
+            "Agente de frontera\nClaude Opus 5.5",
+            "Modelo local + código\nQwen3.5-9B en un portátil",
+        ),
+        "safety": "SEGURIDAD",
+        "cost": "COSTO",
+        "rows": {
+            "accuracy": "Grupo de riesgo correcto",
+            "early": "Respondió antes de que la\nrespuesta estuviera definida*",
+            "irrelevant": "Preguntas que no podían\ncambiar la decisión",
+            "under": "Clasificado en un grupo de\nmenor riesgo que el real*",
+            "tokens": "Tokens del modelo de\nfrontera por paciente",
+            "data": "La ficha sale\ndel equipo",
+            "questions": "Preguntas al clínico\npor paciente",
+            "seconds": "Segundos por paciente\n(mediana)",
         },
-        "p1": "Pacientes clasificados en un grupo de menor riesgo que el real",
-        "p1_note": "cerca de 1 de cada 12",
-        "p2": "Preguntas al clínico por paciente",
-        "p2_note": "la mitad que preguntar por todo, misma precisión",
-        "unit1": " %",
-        "foot": "Simulación: 1.200 casos sintéticos de urgencia, cerca del 30 % de los "
-        "hallazgos sin\nmencionar, Claude Haiku 4.5 leyendo las notas, clínico que siempre "
-        "responde bien.",
+        "yes": "Sí",
+        "no": "No",
+        "sep": ".",
+        "dec": ",",
+        "pct": " %",
+        "foot": "Simulación: 1.200 casos sintéticos de urgencia. *Con un clínico que a veces no sabe,\n"
+        "recuerda mal o responde vago; el resto, con un clínico que responde bien. Tiempo de\n"
+        "lectura local medido en un portátil Apple M1 Pro de 16 GB.",
         "cite": "Vera Zúñiga N. arXiv:2609.34112 · github.com/nicoveraz/calc-bounds",
     },
 }
 
-
-def load() -> pd.DataFrame:
-    t = pd.read_csv(ROOT / "paper" / "tables" / "table_summary.csv")
-    ideal = t.iloc[: t["Clinician"].ffill().eq("Ideal").sum()]
-    return ideal.set_index("Measure")
-
-
-def fmt(v: float, lang: str, decimals: int) -> str:
-    s = f"{v:.{decimals}f}"
-    return s.replace(".", ",") if lang == "es" else s
-
-
-def panel(ax, values: dict[str, float], names, lang: str, decimals: int, unit: str, xmax: float):
-    order = list(names)
-    y = range(len(order))[::-1]
-    colors = [
-        ALARM if p == "Missing = normal" else OURS if p == "Bounds" else "#9E9E9E" for p in order
-    ]
-    vals = [values[p] for p in order]
-    ax.barh(list(y), vals, height=0.62, color=colors, edgecolor="black", linewidth=0.8)
-    for yi, v in zip(y, vals, strict=True):
-        ax.text(
-            v + xmax * 0.015,
-            yi,
-            fmt(v, lang, decimals) + unit,
-            va="center",
-            ha="left",
-            fontsize=17,
-            fontweight="bold",
-        )
-    ax.set_yticks(list(y), [names[p] for p in order], fontsize=13.5)
-    ax.set_xlim(0, xmax)
-    ax.set_xticks([])
-    for side in ("top", "right", "bottom"):
-        ax.spines[side].set_visible(False)
-    ax.tick_params(axis="y", length=0, pad=8)
+# Which column is better for each row (shown bold and coloured); None = no clear winner.
+BETTER = {
+    "accuracy": None,
+    "early": 1,
+    "irrelevant": 1,
+    "under": None,
+    "tokens": 1,
+    "data": 1,
+    "questions": 0,
+    "seconds": 0,
+}
+SECTIONS = [
+    ("safety", ["accuracy", "early", "irrelevant", "under"]),
+    ("cost", ["tokens", "data", "questions", "seconds"]),
+]
 
 
-def draw(lang: str, df: pd.DataFrame) -> Path:
+def number(v: float, decimals: int, tx: dict) -> str:
+    s = f"{v:,.{decimals}f}"
+    return s.replace(",", "\0").replace(".", tx["dec"]).replace("\0", tx["sep"])
+
+
+def draw(lang: str, m: dict[str, tuple[float, float]]) -> Path:
     tx = TEXT[lang]
-    under = {p: float(df.loc["Under-triage, %", p]) for p in tx["names"]}
-    questions = {p: float(df.loc["Questions per case", p]) for p in tx["names"]}
+    cells = {
+        k: [number(v, 1, tx) + tx["pct"] for v in m[k]]
+        for k in ("accuracy", "early", "irrelevant", "under")
+    }
+    cells["tokens"] = ["≈" + number(round(m["tokens"][0], -2), 0, tx), "0"]
+    cells["data"] = [tx["yes"], tx["no"]]
+    cells["questions"] = [number(v, 2, tx) for v in m["questions"]]
+    cells["seconds"] = [number(v, 0, tx) for v in m["seconds"]]
     with matplotlib.rc_context(R_RC):
         fig = plt.figure(figsize=(8, 10), dpi=150, facecolor="white")  # 1200 x 1500 px
-        fig.text(0.06, 0.945, tx["title"], fontsize=34, fontweight="bold", va="top")
-        fig.text(0.06, 0.875, tx["subtitle"], fontsize=16, va="top", color="#333333")
-
-        ax1 = fig.add_axes((0.40, 0.50, 0.52, 0.235))
-        fig.text(0.06, 0.775, tx["p1"], fontsize=16, fontweight="bold", va="top")
-        fig.text(0.06, 0.748, tx["p1_note"], fontsize=14, va="top", color=ALARM, fontweight="bold")
-        panel(ax1, under, tx["names"], lang, 1, tx["unit1"], 11)
-
-        ax2 = fig.add_axes((0.40, 0.145, 0.52, 0.235))
-        fig.text(0.06, 0.44, tx["p2"], fontsize=16, fontweight="bold", va="top")
-        fig.text(0.06, 0.413, tx["p2_note"], fontsize=14, va="top", color=OURS, fontweight="bold")
-        panel(ax2, questions, tx["names"], lang, 2, "", 2.3)
-
-        fig.add_artist(plt.Line2D([0.06, 0.94], [0.115, 0.115], color="black", linewidth=0.8))
-        fig.text(0.06, 0.098, tx["foot"], fontsize=11, va="top", color="#333333")
+        fig.text(
+            0.06, 0.955, tx["title"], fontsize=29, fontweight="bold", va="top", linespacing=1.1
+        )
+        fig.text(0.06, 0.835, tx["subtitle"], fontsize=15, va="top", color="#333333")
+        x_label, x_cols = 0.06, (0.58, 0.81)
+        y = 0.74
+        for i, head in enumerate(tx["cols"]):
+            fig.text(
+                x_cols[i],
+                y,
+                head,
+                fontsize=12,
+                fontweight="bold",
+                ha="center",
+                va="center",
+                color=FRONTIER if i == 0 else LOCAL,
+                linespacing=1.15,
+            )
+        y -= 0.045
+        for section, keys in SECTIONS:
+            fig.add_artist(plt.Line2D([0.06, 0.94], [y, y], color="black", linewidth=1.0))
+            fig.text(x_label, y - 0.01, tx[section], fontsize=12, fontweight="bold", va="top")
+            y -= 0.048
+            for key in keys:
+                fig.text(x_label, y, tx["rows"][key], fontsize=13, va="center", linespacing=1.1)
+                for i, cell in enumerate(cells[key]):
+                    win = BETTER[key] == i
+                    fig.text(
+                        x_cols[i],
+                        y,
+                        cell,
+                        fontsize=21 if win else 18,
+                        fontweight="bold" if win else "normal",
+                        ha="center",
+                        va="center",
+                        color=(FRONTIER if i == 0 else LOCAL) if win else "black",
+                    )
+                y -= 0.058
+            y += 0.01
+        fig.add_artist(plt.Line2D([0.06, 0.94], [y, y], color="black", linewidth=1.0))
+        fig.text(
+            0.06, y - 0.015, tx["foot"], fontsize=10.5, va="top", color="#333333", linespacing=1.35
+        )
         fig.text(0.06, 0.04, tx["cite"], fontsize=11.5, va="top", fontweight="bold")
         OUT.mkdir(parents=True, exist_ok=True)
         path = OUT / f"linkedin_{lang}.png"
@@ -131,6 +214,8 @@ def draw(lang: str, df: pd.DataFrame) -> Path:
 
 
 if __name__ == "__main__":
-    data = load()
+    values = measures()
+    for k, v in values.items():
+        print(f"{k}: frontier {v[0]:.2f}, local {v[1]:.2f}")
     for lang in TEXT:
-        print(draw(lang, data))
+        print(draw(lang, values))
