@@ -92,7 +92,8 @@ TEXT = {
         "dec": ".",
         "pct": "%",
         "foot": "Simulation: 1,200 synthetic emergency cases. *With a clinician who "
-        "sometimes does\nnot know, misremembers or answers vaguely; other rows with a clinician who answers\n"
+        "sometimes does\nnot know, misremembers or answers vaguely; other rows with a "
+        "clinician who answers\n"
         "correctly. Local reading time measured on an Apple M1 Pro laptop, 16 GB.",
         "cite": "Vera Zúñiga N. arXiv:2609.34112 · github.com/nicoveraz/calc-bounds",
     },
@@ -122,7 +123,8 @@ TEXT = {
         "dec": ",",
         "pct": " %",
         "foot": "Simulación: 1.200 casos sintéticos de urgencia. *Con un clínico que a "
-        "veces no sabe,\nrecuerda mal o responde vago; el resto, con un clínico que responde bien. Tiempo de\n"
+        "veces no sabe,\nrecuerda mal o responde vago; el resto, con un clínico que "
+        "responde bien. Tiempo de\n"
         "lectura local medido en un portátil Apple M1 Pro de 16 GB.",
         "cite": "Vera Zúñiga N. arXiv:2609.34112 · github.com/nicoveraz/calc-bounds",
     },
