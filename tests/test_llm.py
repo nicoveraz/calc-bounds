@@ -112,3 +112,35 @@ def test_error_responses_are_not_cached(tmp_path: Path) -> None:
     assert llm.complete(req(), provider="f").stop_reason == "error"
     assert llm.complete(req(), provider="f").text == "ok"  # retried, not served from cache
     assert llm.complete(req(), provider="f").usage.cached
+
+
+def test_ollama_num_ctx_is_sent_only_when_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    import urllib.request
+
+    from calc_bounds.config import ProviderConfig
+    from calc_bounds.llm.clients import OllamaClient
+
+    sent: list[dict] = []
+
+    class Resp:
+        def __enter__(self) -> "Resp":
+            return self
+
+        def __exit__(self, *a: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps({"message": {"content": "{}"}, "done_reason": "stop"}).encode()
+
+    def fake_urlopen(request: urllib.request.Request, timeout: float) -> Resp:
+        sent.append(json.loads(request.data))  # type: ignore[arg-type]
+        return Resp()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    for num_ctx in (None, 16384):
+        p = ProviderConfig(kind="ollama", model="m", num_ctx=num_ctx)
+        r = LLMRequest(provider="ollama", model="m", messages=[], params=p.request_params())
+        OllamaClient(p).complete(r)
+    assert "num_ctx" not in sent[0]["options"]
+    assert sent[1]["options"]["num_ctx"] == 16384
+    assert "num_ctx" not in ProviderConfig(kind="ollama", model="m").request_params()

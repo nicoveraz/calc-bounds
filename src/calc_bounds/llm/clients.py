@@ -231,8 +231,8 @@ class ClaudeCLIClient:
 class OllamaClient:
     """Ollama native /api/chat (the OpenAI-compatible endpoint does not return logprobs).
 
-    Standard library only. Supports JSON-schema `format`, `think`, temperature, seed and
-    token logprobs (`logprobs`, `top_logprobs`).
+    Standard library only. Supports JSON-schema `format`, `think`, temperature, seed,
+    `num_ctx` (context window) and token logprobs (`logprobs`, `top_logprobs`).
     """
 
     def __init__(self, cfg: ProviderConfig) -> None:
@@ -248,7 +248,7 @@ class OllamaClient:
             *request.messages
         ]
         options: dict[str, Any] = {"num_predict": p.get("max_tokens", 4096)}
-        for name in ("temperature", "seed"):
+        for name in ("temperature", "seed", "num_ctx"):
             if name in p:
                 options[name] = p[name]
         if "seed" in options and p.get("attempt", 1) > 1:

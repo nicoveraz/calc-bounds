@@ -31,6 +31,9 @@ class ProviderConfig(Strict):
     """openai_compat / ollama only."""
     think: bool | None = None
     """ollama only: enable/disable the model's thinking mode."""
+    num_ctx: int | None = Field(default=None, gt=0)
+    """ollama only: context window in tokens (Ollama's default can silently truncate long
+    notes). Unset = server default; unset values do not enter the request or its cache key."""
     price_per_mtok_in: float = 0.0
     price_per_mtok_out: float = 0.0
 
@@ -45,7 +48,7 @@ class ProviderConfig(Strict):
 
     def request_params(self) -> dict[str, object]:
         params: dict[str, object] = {"max_tokens": self.max_tokens}
-        for name in ("effort", "temperature", "seed", "think"):
+        for name in ("effort", "temperature", "seed", "think", "num_ctx"):
             if (v := getattr(self, name)) is not None:
                 params[name] = v
         return params
