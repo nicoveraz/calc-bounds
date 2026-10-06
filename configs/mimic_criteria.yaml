@@ -1,0 +1,123 @@
+# MIMIC cohort and structured-truth definitions (loaded by calc_bounds.mimic.criteria).
+#
+# TODO(physician-review): EVERY item in this file. These are operational definitions written
+# by us, not taken from a primary source. Itemids and omr names must also be checked against
+# d_labitems / d_items / omr in the installed MIMIC version. Each item is listed in
+# docs/MIMIC_VALIDATION.md ("Review items").
+#
+# ICD codes are prefixes in MIMIC format: upper case, no dots ("J18" matches "J189").
+
+windows:
+  vitals_hours: 4            # TODO(physician-review): fallback to first `vitalsign` row
+  labs_hours: 24             # TODO(physician-review): first lab in [ED arrival, +24 h]
+  gcs_hours: 24              # TODO(physician-review): first complete GCS (ICU chartevents)
+  weight_days: 365           # TODO(physician-review): omr weight/BMI nearest to arrival
+  infection_hours: [-6, 24]  # TODO(physician-review): suspicion time relative to arrival
+
+itemids:
+  bun: 51006                 # from the design doc
+  creatinine: 50912          # from the design doc
+  troponin_t: 51003          # from the design doc
+  d_dimer: 50915             # TODO(physician-review): verify in d_labitems
+  gcs_eye: 220739            # TODO(physician-review): verify in d_items
+  gcs_verbal: 223900         # TODO(physician-review): verify in d_items
+  gcs_motor: 223901          # TODO(physician-review): verify in d_items
+
+omr:
+  weight_lbs: "Weight (Lbs)" # TODO(physician-review): verify omr.result_name
+  bmi: "BMI (kg/m2)"         # TODO(physician-review): verify omr.result_name
+
+cohorts:
+  # TODO(physician-review): CURB-65 population = pneumonia as principal diagnosis of an
+  # admission through the ED. Alternatives: any position; add influenza with pneumonia
+  # (J09-J11 subcodes, ICD-9 487.0); exclude hospital-acquired.
+  pneumonia:
+    icd10: [J12, J13, J14, J15, J16, J17, J18]
+    icd9: ["480", "481", "482", "483", "484", "485", "486"]
+  pneumonia_max_seq_num: 1
+
+  # TODO(physician-review): Sepsis-3 suspicion of infection (Seymour 2016; mimic-code
+  # suspicion_of_infection): culture then antibiotic within 72 h, or antibiotic then culture
+  # within 24 h. The antibiotic list below is illustrative, not mimic-code's full list.
+  suspected_infection:
+    antibiotic_pattern: "amoxicillin|ampicillin|azithromycin|aztreonam|cefazolin|cefepime|cefpodoxime|ceftazidime|ceftriaxone|cefuroxime|cephalexin|ciprofloxacin|clindamycin|daptomycin|doxycycline|ertapenem|gentamicin|levofloxacin|linezolid|meropenem|metronidazole|moxifloxacin|nafcillin|nitrofurantoin|oxacillin|piperacillin|sulfamethoxazole|tobramycin|vancomycin"
+    exclude_drug_pattern: "cream|gel|ophth|desensitization|oint"
+    exclude_routes: [OU, OS, OD, AU, AS, AD, TP]
+    culture_then_antibiotic_hours: 72
+    antibiotic_then_culture_hours: 24
+
+  # TODO(physician-review): chest-pain visit = chief complaint OR ED diagnosis code.
+  chest_pain_complaint: "\\bchest\\s*(pain|pressure|tightness|discomfort)\\b|\\bCP\\b"
+  chest_pain_ed_icd:
+    icd10: [R071, R072, R078, R079]     # R07.0 (throat pain) excluded
+    icd9: ["7865"]
+
+obesity_bmi_above: 30        # HEART parameter label (BMI > 30), reviewed for Paper 1
+gcs_altered_below: 15        # qSOFA: GCS < 15 (Sepsis-3), reviewed for Paper 1
+                             # TODO(physician-review): also used as the CURB-65 confusion proxy
+
+# TODO(physician-review): comorbidity codes. A code present sets the item True; NO code leaves
+# it Unknown (never False). Discharge coding also contains conditions diagnosed during the
+# stay (e.g. the ACS itself), so only history/status codes are listed where possible.
+comorbidity_icd:
+  hypertension:
+    icd10: [I10, I11, I12, I13, I15, I16]
+    icd9: ["401", "402", "403", "404", "405"]
+  hypercholesterolemia:
+    icd10: [E780, E782, E784, E785]
+    icd9: ["2720", "2722", "2724"]
+  diabetes:
+    icd10: [E08, E09, E10, E11, E13]
+    icd9: ["250"]
+  obesity:                   # BMI from omr takes precedence when available
+    icd10: [E66, Z683, Z684]
+    icd9: ["2780", V853, V854]
+  smoking:                   # current use only; history-of codes (Z87891, V1582) excluded
+    icd10: [F172, Z720]
+    icd9: ["3051"]
+  family_history_cad:
+    icd10: [Z824]
+    icd9: [V173]
+  atherosclerotic_disease:   # history/status codes; acute MI/stroke of this stay excluded
+    icd10: [I252, I255, I256, I258, I259, Z951, Z955, Z9861, Z8673, I69, I702, I739]
+    icd9: ["412", "4140", V4581, V4582, V1254, "438", "4402", "4439"]
+  prior_vte:
+    icd10: [Z8671]
+    icd9: [V1251]
+  malignancy:                # Wells: active malignancy cannot be told from codes
+    icd10: [C]
+    icd9: ["14", "15", "16", "17", "18", "19", "20"]
+  hemoptysis:
+    icd10: [R042]
+    icd9: ["7863"]
+
+# Judgement items: stay Unknown in structured truth; physician annotation only.
+annotation_params: [heart_history, heart_ecg, pe_most_likely, dvt_signs]
+
+# TODO(physician-review): which discharge-summary sections approximate "known in the ED".
+# A kept section runs until the next heading listed under keep or stop. Discharge exam and
+# discharge labs are cut off by the stop list.
+note_sections:
+  keep:
+    chief_complaint: ["chief complaint"]
+    hpi: ["history of present illness", "hpi"]
+    past_medical_history: ["past medical history", "pmh"]
+    social_history: ["social history"]
+    family_history: ["family history"]
+    physical_exam: ["physical exam(ination)?", "admission (physical )?exam"]
+    pertinent_results: ["pertinent results", "admission labs"]
+  stop:
+    - "discharge (physical )?exam(ination)?"
+    - "discharge labs"
+    - "brief hospital course"
+    - "hospital course"
+    - "major surgical or invasive procedure"
+    - "allergies"
+    - "medications on admission"
+    - "discharge medications"
+    - "discharge disposition"
+    - "discharge diagnos[ie]s"
+    - "discharge condition"
+    - "discharge instructions"
+    - "followup instructions"
+    - "past surgical history"

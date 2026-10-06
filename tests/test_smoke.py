@@ -25,7 +25,9 @@ MODULES = [
     "calc_bounds.cli",
 ]
 
-CONFIGS = sorted((Path(__file__).parent.parent / "configs").glob("*.yaml"))
+ALL_CONFIGS = sorted((Path(__file__).parent.parent / "configs").glob("*.yaml"))
+# MIMIC configs have their own schema (calc_bounds.mimic); validated in test_mimic_config.py.
+CONFIGS = [p for p in ALL_CONFIGS if not p.name.startswith("mimic_")]
 
 
 @pytest.mark.parametrize("module", MODULES)

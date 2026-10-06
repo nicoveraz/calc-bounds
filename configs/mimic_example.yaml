@@ -1,0 +1,62 @@
+# MIMIC-IV validation run (example). Copy, then point every path at your local PhysioNet
+# downloads. All paths must resolve OUTSIDE this repository; the config refuses them otherwise.
+# Only local model servers (ollama / openai_compat on localhost) are accepted.
+#
+#   uv run calc-bounds mimic check-config configs/mimic_example.yaml
+#   uv run calc-bounds mimic cohort configs/mimic_example.yaml
+#   uv run calc-bounds mimic run configs/mimic_example.yaml --extractor qwen9b
+#   uv run calc-bounds mimic aggregate configs/mimic_example.yaml --extractor qwen9b --out results/mimic
+run_id: mimic-v1
+seed: 20261006
+
+paths:
+  data_dir: /path/outside/repo/physionet/mimic-iv/2.2          # contains hosp/ and icu/
+  ed_dir: /path/outside/repo/physionet/mimic-iv-ed/2.2/ed
+  notes_path: /path/outside/repo/physionet/mimic-iv-note/2.2/note/discharge.csv.gz
+  output_dir: /path/outside/repo/calc-bounds-mimic-runs       # row-level outputs
+  cache_dir: /path/outside/repo/calc-bounds-mimic-cache/llm   # LLM cache (contains note text)
+
+criteria: configs/mimic_criteria.yaml   # cohort definitions; TODO(physician-review)
+
+calculators: [curb65, qsofa, heart, cockcroft_gault]
+calculator_options:
+  cockcroft_gault:
+    thresholds_ml_min: [30, 60]   # as in Paper 1
+
+max_cases_per_calculator: null   # e.g. 50 for a pilot (seeded sample)
+
+extractors:
+  qwen4b: {provider: qwen4b}
+  qwen9b: {provider: qwen9b}
+  gemma12b: {provider: gemma12b}
+
+policies: [s1_ask_all, s3_bounds, s4_bounds_voi_echo, s3_bin]
+echo_threshold: 0.9
+min_cell_count: 10
+
+# Model names are examples; use the exact tags pulled into your local Ollama.
+providers:
+  qwen4b:
+    kind: ollama
+    model: REPLACE_ME
+    base_url: http://localhost:11434
+    temperature: 0
+    seed: 0
+    think: false
+    max_tokens: 4096
+  qwen9b:
+    kind: ollama
+    model: REPLACE_ME
+    base_url: http://localhost:11434
+    temperature: 0
+    seed: 0
+    think: false
+    max_tokens: 4096
+  gemma12b:
+    kind: ollama
+    model: REPLACE_ME
+    base_url: http://localhost:11434
+    temperature: 0
+    seed: 0
+    think: false
+    max_tokens: 4096
