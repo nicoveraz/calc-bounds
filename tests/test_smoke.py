@@ -23,6 +23,17 @@ MODULES = [
     "calc_bounds.eval",
     "calc_bounds.anchor",
     "calc_bounds.cli",
+    "calc_bounds.mimic.config",
+    "calc_bounds.mimic.criteria",
+    "calc_bounds.mimic.tables",
+    "calc_bounds.mimic.cohorts",
+    "calc_bounds.mimic.truth",
+    "calc_bounds.mimic.notes",
+    "calc_bounds.mimic.clinician",
+    "calc_bounds.mimic.annotation",
+    "calc_bounds.mimic.extract",
+    "calc_bounds.mimic.outcomes",
+    "calc_bounds.mimic.runner",
 ]
 
 ALL_CONFIGS = sorted((Path(__file__).parent.parent / "configs").glob("*.yaml"))

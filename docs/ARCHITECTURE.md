@@ -149,3 +149,12 @@ YAML validated by `config.RunConfig` (extra keys rejected). See
 
 ## CLI
 `calc-bounds check-config | cohort | render | export-review | run | eval | anchor  CONFIG`
+
+## MIMIC-IV validation (code only)
+`src/calc_bounds/mimic/` runs the same extraction, bounds and S1/S3/S4/S3-bin policies on real
+records, with the EHR as the clinician. Data, row-level outputs and the LLM cache must live
+outside the repo and only local models are accepted (enforced by `mimic/config.py`). Only
+aggregate tables are meant to be committed. Design, outcomes and review items:
+[`MIMIC_VALIDATION.md`](MIMIC_VALIDATION.md).
+
+`calc-bounds mimic check-config | cohort | annotation-template | import-annotations | run | aggregate  CONFIG`

@@ -191,3 +191,12 @@ parameter; a test enforces this.
 
 These parameters can only be Present or Unknown (they are judgements or demographics): age,
 sex, weight, creatinine and HEART history.
+
+## MIMIC-IV validation (open items)
+
+The MIMIC pipeline adds operational definitions (ICD code lists, itemids, chief-complaint
+patterns, time windows, note sections, the GCS confusion proxy, troponin relative to the
+assay's reference limit). None has been reviewed yet; they are marked
+`TODO(physician-review)` in `configs/mimic_criteria.yaml` and `src/calc_bounds/mimic/` and
+listed as items M1–M11 in [`MIMIC_VALIDATION.md`](MIMIC_VALIDATION.md#review-items-todophysician-review).
+The calculators themselves are unchanged.
