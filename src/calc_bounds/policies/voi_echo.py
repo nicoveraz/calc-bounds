@@ -19,11 +19,10 @@ from calc_bounds.bounds import (
     resolve_probability,
 )
 from calc_bounds.calculators import Calculator
-from calc_bounds.cohort import PatientCase
 from calc_bounds.distributions import Bernoulli, Categorical, Distribution, TruncNormal
 from calc_bounds.extraction import Extractor
 from calc_bounds.extraction.calibration import Calibrator
-from calc_bounds.policies.base import Trace
+from calc_bounds.policies.base import CaseRef, Trace
 from calc_bounds.policies.loop import Reason, run_loop
 from calc_bounds.simulator import SimulatedClinician
 from calc_bounds.types import Absent, NumericDomain, ParamId, Present, Value
@@ -92,7 +91,7 @@ class VoiEchoPolicy:
 
     def run(
         self,
-        case: PatientCase,
+        case: CaseRef,
         note: str,
         calc: Calculator,
         extractor: Extractor,

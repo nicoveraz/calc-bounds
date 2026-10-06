@@ -17,6 +17,16 @@ from calc_bounds.llm import Usage
 from calc_bounds.simulator import Answer, SimulatedClinician
 from calc_bounds.types import ParamId
 
+
+class CaseRef(Protocol):
+    """What the code policies (S1, S3, S3-bin, S4) need from a case: only its id. Synthetic
+    `PatientCase`s and MIMIC cases (partial structured truth) both qualify. S2 needs the full
+    `PatientCase`."""
+
+    @property
+    def case_id(self) -> str: ...
+
+
 type PolicyId = Literal["s1_ask_all", "s2_llm_agent", "s3_bounds", "s4_bounds_voi_echo", "s3_bin"]
 
 

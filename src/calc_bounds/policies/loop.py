@@ -12,9 +12,8 @@ from calc_bounds.bounds import (
     score_bounds,
 )
 from calc_bounds.calculators import Calculator
-from calc_bounds.cohort import PatientCase
 from calc_bounds.extraction import Extractor
-from calc_bounds.policies.base import PolicyId, Step, Trace
+from calc_bounds.policies.base import CaseRef, PolicyId, Step, Trace
 from calc_bounds.simulator import SimulatedClinician
 from calc_bounds.types import ParamId
 
@@ -28,7 +27,7 @@ type Chooser = Callable[
 def run_loop(
     policy: PolicyId,
     choose: Chooser,
-    case: PatientCase,
+    case: CaseRef,
     note: str,
     calc: Calculator,
     extractor: Extractor,
