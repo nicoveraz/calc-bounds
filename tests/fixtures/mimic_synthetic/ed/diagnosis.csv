@@ -1,0 +1,3 @@
+subject_id,stay_id,seq_num,icd_code,icd_version,icd_title
+99000003,97000003,1,R079,10,SYNTHETIC CHEST PAIN
+99000001,97000001,1,J189,10,SYNTHETIC PNEUMONIA

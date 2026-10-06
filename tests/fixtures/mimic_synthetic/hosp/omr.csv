@@ -1,0 +1,5 @@
+subject_id,chartdate,seq_num,result_name,result_value
+99000001,2149-11-01,1,Weight (Lbs),154
+99000001,2148-01-01,1,Weight (Lbs),200
+99000006,2150-02-01,1,BMI (kg/m2),32.1
+99000006,2150-02-01,1,Blood Pressure,120/80

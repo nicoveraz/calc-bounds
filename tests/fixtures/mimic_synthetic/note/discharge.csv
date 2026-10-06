@@ -1,0 +1,50 @@
+note_id,subject_id,hadm_id,note_type,note_seq,charttime,storetime,text
+98000001-DS-1,99000001,98000001,DS,1,2150-01-04 16:00:00,2150-01-04 17:00:00,"Name:  ___                     Unit No:   ___
+Sex:   M
+Service: MEDICINE
+Allergies:
+No Known Allergies (synthetic)
+Chief Complaint:
+SYNTHETIC TEST: cough and fever
+History of Present Illness:
+SYNTHETIC TEST NOTE about a fictional patient. Three days of productive cough and fever.
+Denies chest pain. No hemoptysis.
+Past Medical History:
+None (fictional).
+Social History:
+___
+Family History:
+Noncontributory (fictional).
+Physical Exam:
+ADMISSION PHYSICAL EXAM:
+Vitals: T 38.9 HR 110 BP 85/50 RR 32 O2 91% RA
+General: alert and oriented x3, not confused
+DISCHARGE PHYSICAL EXAM:
+Vitals: HR 80 BP 120/70 RR 16
+Pertinent Results:
+ADMISSION LABS:
+BUN-30 Creat-1.5
+DISCHARGE LABS:
+BUN-12 Creat-0.9
+Brief Hospital Course:
+Fictional course text.
+"
+98000002-DS-1,99000002,98000002,DS,1,2150-01-04 16:00:00,2150-01-04 17:00:00,"Chief Complaint:
+SYNTHETIC TEST: chest pain
+History of Present Illness:
+SYNTHETIC TEST NOTE. Fictional 50 year old woman with chest pressure at rest.
+Past Medical History:
+Hypertension. Hyperlipidemia.
+Social History:
+Never smoker (fictional).
+Physical Exam:
+HR 88 BP 150/90 RR 16 SpO2 98% RA
+Pertinent Results:
+Troponin T 0.02
+Brief Hospital Course:
+Fictional course text.
+"
+98000005-DS-1,99000005,98000005,DS,1,2150-01-04 16:00:00,2150-01-04 17:00:00,SYNTHETIC TEST NOTE. Fictional fall.
+98000006-DS-1,99000006,98000006,DS,1,2150-01-04 16:00:00,2150-01-04 17:00:00,"SYNTHETIC TEST NOTE WITHOUT STANDARD HEADINGS. Fictional 40 year old man, chest pain after
+exercise, troponin negative. BMI 32. Course uneventful (fictional).
+"

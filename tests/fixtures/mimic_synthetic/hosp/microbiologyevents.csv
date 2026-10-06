@@ -1,0 +1,3 @@
+microevent_id,subject_id,hadm_id,micro_specimen_id,chartdate,charttime,spec_type_desc
+1,99000001,,1,2150-01-01,2150-01-01 09:00:00,BLOOD CULTURE
+2,99000002,98000002,2,2150-01-01,2150-01-01 09:00:00,URINE

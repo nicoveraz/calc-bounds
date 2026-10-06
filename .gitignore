@@ -31,3 +31,13 @@ runs/
 .DS_Store
 .idea/
 .vscode/
+
+# MIMIC (credentialed PhysioNet data): never inside this repo. These patterns are a second
+# line of defence; the MIMIC config already refuses data/output/cache paths in the repo.
+*.csv.gz
+mimic-iv*/
+physionet*/
+discharge.csv
+labevents.csv
+chartevents.csv
+!tests/fixtures/mimic_synthetic/**
