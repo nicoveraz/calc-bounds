@@ -183,3 +183,81 @@ def anchor(
     """Run the MedCalc-Bench anchor (extraction + code) with one extractor."""
     out = pipeline.anchor_run(load_config(config), extractor, split, per_calc)
     typer.echo(out.with_suffix(".summary.csv").read_text())
+
+
+# --- MIMIC-IV validation (credentialed data outside the repo; local models only) ---------------
+
+mimic_app = typer.Typer(
+    no_args_is_help=True,
+    help="MIMIC-IV validation. Data, row-level outputs and the LLM cache stay outside the repo; "
+    "only local models are allowed. See docs/MIMIC_VALIDATION.md.",
+)
+app.add_typer(mimic_app, name="mimic")
+
+MIMIC_EXTRACTOR_OPT = typer.Option("oracle", help="Key in `extractors`, or 'oracle' (no model).")
+MIMIC_OUT_OPT = typer.Option(Path("results/mimic"), help="Where aggregate tables go.")
+
+
+@mimic_app.command("check-config")
+def mimic_check_config(config: Path) -> None:
+    """Validate a MIMIC config (paths outside the repo, local providers only)."""
+    from calc_bounds.mimic.config import load_mimic_config
+    from calc_bounds.mimic.criteria import load_criteria
+
+    cfg = load_mimic_config(config)
+    load_criteria(cfg.criteria)
+    typer.echo(cfg.model_dump_json(indent=2))
+
+
+@mimic_app.command("cohort")
+def mimic_cohort(config: Path) -> None:
+    """Build cases: cohorts, structured truth and note sections (row-level, outside the repo)."""
+    from calc_bounds.mimic import runner
+    from calc_bounds.mimic.config import load_mimic_config
+
+    out = runner.build_cohort(load_mimic_config(config))
+    typer.echo((out / "cohort_flow.csv").read_text())
+    typer.echo(f"wrote {out}")
+
+
+@mimic_app.command("annotation-template")
+def mimic_annotation_template(
+    config: Path,
+    n: int | None = typer.Option(None, help="Seeded sample of cases per calculator."),
+) -> None:
+    """Export the judgement-item template (ids only) for physician annotation."""
+    from calc_bounds.mimic import runner
+    from calc_bounds.mimic.config import load_mimic_config
+
+    typer.echo(f"wrote {runner.export_annotations(load_mimic_config(config), n)}")
+
+
+@mimic_app.command("import-annotations")
+def mimic_import_annotations(config: Path, filled: Path) -> None:
+    """Validate a filled annotation template and store it with the run."""
+    from calc_bounds.mimic import runner
+    from calc_bounds.mimic.config import load_mimic_config
+
+    typer.echo(f"wrote {runner.import_annotations(load_mimic_config(config), filled)}")
+
+
+@mimic_app.command("run")
+def mimic_run(config: Path, extractor: str = MIMIC_EXTRACTOR_OPT) -> None:
+    """Extraction -> S1 / S3 / S4 / S3-bin with the EHR as the clinician (row-level outputs)."""
+    from calc_bounds.mimic import runner
+    from calc_bounds.mimic.config import load_mimic_config
+
+    typer.echo(f"wrote {runner.run(load_mimic_config(config), extractor)}")
+
+
+@mimic_app.command("aggregate")
+def mimic_aggregate(
+    config: Path,
+    extractor: str = MIMIC_EXTRACTOR_OPT,
+    out: Path = MIMIC_OUT_OPT,
+) -> None:
+    """Aggregate tables only (counts, rates, Wilson CIs, means); safe to commit."""
+    from calc_bounds.mimic import runner
+    from calc_bounds.mimic.config import load_mimic_config
+
+    typer.echo(f"wrote {runner.aggregate(load_mimic_config(config), extractor, out)}")
