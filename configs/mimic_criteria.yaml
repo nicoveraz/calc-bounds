@@ -47,7 +47,7 @@ cohorts:
     antibiotic_then_culture_hours: 24
 
   # TODO(physician-review): chest-pain visit = chief complaint OR ED diagnosis code.
-  chest_pain_complaint: "\\bchest\\s*(pain|pressure|tightness|discomfort)\\b|\\bCP\\b"
+  chest_pain_complaint: "\\bchest\\s*(?:pain|pressure|tightness|discomfort)\\b|\\bCP\\b"
   chest_pain_ed_icd:
     icd10: [R071, R072, R078, R079]     # R07.0 (throat pain) excluded
     icd9: ["7865"]
