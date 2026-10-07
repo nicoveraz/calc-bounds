@@ -19,7 +19,7 @@ Article type: Research and Applications. Check the author instructions again at 
       text <= 4,000, <= 4 tables, <= 6 figures.
 - [ ] Supplement: add the MIMIC operational definitions section (S-MIMIC).
 - [ ] Second physician reviews calculator readings and MIMIC definitions (co-author?).
-- [ ] Verify MIMIC reference DOIs in `paper/refs.bib`.
+- [x] MIMIC reference DOIs checked against the PhysioNet project pages (2026-10-07).
 - [ ] Confirm the ethics statement (deidentified data under the PhysioNet DUA).
 - [ ] AI-use disclosure in Methods and cover letter (done in the draft).
 - [ ] Data availability statement (done in the draft).
