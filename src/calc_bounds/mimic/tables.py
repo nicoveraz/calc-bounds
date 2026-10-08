@@ -33,6 +33,7 @@ LABEVENTS = [
     "valuenum",
     "valueuom",
     "ref_range_upper",
+    "comments",
 ]
 CHARTEVENTS = ["subject_id", "stay_id", "charttime", "itemid", "valuenum"]
 OMR = ["subject_id", "chartdate", "result_name", "result_value"]

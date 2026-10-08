@@ -129,13 +129,18 @@ def _uom_is(df: pd.DataFrame, unit: str) -> pd.Series:
     return df["valueuom"].fillna("").str.strip().str.lower() == unit.lower()
 
 
-_COMPARATOR = re.compile(r"^\s*([<>])\s*=?\s*([0-9]*\.?[0-9]+)")
+_COMPARATOR = re.compile(
+    r"^\s*(<|>|LESS\s+THAN|GREATER\s+THAN)\s*=?\s*([0-9]*\.?[0-9]+)", re.IGNORECASE
+)
 
 
-def troponin_level(valuenum: float, value: str | None, upper: float) -> int | None:
+def troponin_level(
+    valuenum: float, value: str | None, upper: float, comments: str | None = None
+) -> int | None:
     """Troponin level relative to the assay's upper reference limit (HEART bands as in
-    Paper 1: <= ULN -> 0, 1-3x -> 1, > 3x -> 2). Censored text values ("<0.01") are used
-    only when they settle the level. None when undetermined.
+    Paper 1: <= ULN -> 0, 1-3x -> 1, > 3x -> 2). Censored results ("<0.01", "LESS THAN
+    0.01") are used only when they settle the level; when `value` is empty, the result is
+    looked for in `comments` (MIMIC stores some results there). None when undetermined.
     TODO(physician-review): troponin T assay (conventional vs hs) and ref_range_upper as the
     upper reference limit; sex-specific 99th percentiles are not modelled."""
     if pd.isna(upper) or upper <= 0:
@@ -143,10 +148,11 @@ def troponin_level(valuenum: float, value: str | None, upper: float) -> int | No
     if not pd.isna(valuenum):
         ratio = valuenum / upper
         return 0 if ratio <= 1 else 1 if ratio <= 3 else 2
-    m = _COMPARATOR.match(value if isinstance(value, str) else "")
+    text = value if isinstance(value, str) and value.strip() else comments
+    m = _COMPARATOR.match(text if isinstance(text, str) else "")
     if m is None:
         return None
-    op, x = m.group(1), float(m.group(2))
+    op, x = ("<" if m.group(1)[0] in "<lL" else ">"), float(m.group(2))
     if op == "<" and x <= upper:
         return 0
     if op == ">" and x / upper >= 3:
@@ -164,9 +170,13 @@ def labs(stays: pd.DataFrame, labevents: pd.DataFrame, crit: MimicCriteria) -> p
     trop = _first_labs(stays, labevents, ids.troponin_t, h)
     level = pd.Series(
         [
-            troponin_level(n, v, u)
-            for n, v, u in zip(
-                trop["valuenum"], trop["value"], trop["ref_range_upper"], strict=True
+            troponin_level(n, v, u, c)
+            for n, v, u, c in zip(
+                trop["valuenum"],
+                trop["value"],
+                trop["ref_range_upper"],
+                trop["comments"],
+                strict=True,
             )
         ],
         dtype=object,

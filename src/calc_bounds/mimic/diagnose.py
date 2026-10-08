@@ -84,8 +84,14 @@ def troponin_value_shapes(cfg: MimicRunConfig, itemid: int) -> pd.DataFrame:
     ).merge(T.load_edstays(d)[["stay_id", "intime"]], on="stay_id")
     labs = T.load_labevents(d, {itemid}, set(stays["subject_id"]))
     first = TR._first_labs(stays, labs, itemid, crit.windows.labs_hours).drop_duplicates("stay_id")
-    text = first.loc[first["valuenum"].isna(), "value"].fillna("<empty>").astype(str)
-    counts = text.map(_shape).value_counts()
+    no_num = first[first["valuenum"].isna()]
+    value = no_num["value"].fillna("").astype(str)
+    comments = no_num["comments"].fillna("").astype(str)
+    text = [
+        f"value={_shape(v) or '<empty>'} | comments={_shape(c) or '<empty>'}"
+        for v, c in zip(value, comments, strict=True)
+    ]
+    counts = pd.Series(text, dtype=str).value_counts()
     return pd.DataFrame(
         {"shape": counts.index, "stays": [_count(int(n), cfg.min_cell_count) for n in counts]}
     )

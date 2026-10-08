@@ -74,7 +74,7 @@ A **partial** assignment: a value missing from the record is Unknown.
 | age, sex | `patients` (age = anchor_age + year of ED arrival − anchor_year) |
 | urea | first BUN (mg/dL) within `labs_hours` of arrival, converted to mmol/L by `units.py` |
 | creatinine | first creatinine (mg/dL) in the same window |
-| HEART troponin | first troponin T, as a level relative to `ref_range_upper` (≤ 1×, 1–3×, > 3×); censored values ("<0.01") only when they settle the level |
+| HEART troponin | first troponin T, as a level relative to `ref_range_upper` (≤ 1×, 1–3×, > 3×); censored values ("<0.01", "LESS THAN 0.01") only when they settle the level; when `value` is empty the result is read from `comments`, where MIMIC stores some results |
 | confusion, altered mentation | first complete GCS in ICU `chartevents`: total < 15 → present, 15 → absent. No GCS (most ED-only patients) → Unknown |
 | weight | `omr` "Weight (Lbs)" nearest to arrival (± `weight_days`), converted to kg |
 | obesity | `omr` BMI nearest to arrival (> 30); else an obesity code (present) |

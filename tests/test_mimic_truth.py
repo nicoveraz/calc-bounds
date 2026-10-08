@@ -122,6 +122,10 @@ def test_troponin_levels(records: dict[int, TR.StayRecord]) -> None:
     assert TR.troponin_level(float("nan"), "<0.05", 0.01) is None  # censored, not settled
     assert TR.troponin_level(float("nan"), ">0.5", 0.01) == 2
     assert TR.troponin_level(0.5, None, float("nan")) is None
+    # result only in the comments column (value empty)
+    assert TR.troponin_level(float("nan"), "", 0.01, "LESS THAN 0.01") == 0
+    assert TR.troponin_level(float("nan"), None, 0.01, "greater than 0.5 ng/mL") == 2
+    assert TR.troponin_level(float("nan"), None, 0.01, "___") is None
 
 
 def test_comorbidities_true_or_unknown_never_false(records: dict[int, TR.StayRecord]) -> None:

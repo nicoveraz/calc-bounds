@@ -33,6 +33,8 @@ def write(sub: str, name: str, rows: list[dict]) -> None:
     out = HERE / sub / f"{name}.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(rows)
+    if name == "labevents" and "comments" not in df:
+        df["comments"] = ""  # real labevents has it; results sometimes live only here
     for c in df.columns:
         if c.endswith("_id") and c != "note_id":
             df[c] = df[c].astype("Int64")  # ids as integers, empty when missing
