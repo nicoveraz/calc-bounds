@@ -250,6 +250,17 @@ def mimic_run(config: Path, extractor: str = MIMIC_EXTRACTOR_OPT) -> None:
     typer.echo(f"wrote {runner.run(load_mimic_config(config), extractor)}")
 
 
+@mimic_app.command("diagnose")
+def mimic_diagnose(config: Path) -> None:
+    """Aggregate-only diagnostics: troponin items in the window, GCS coverage."""
+    from calc_bounds.mimic.config import load_mimic_config
+    from calc_bounds.mimic.diagnose import gcs_report, troponin_report
+
+    cfg = load_mimic_config(config)
+    typer.echo(troponin_report(cfg).to_csv(index=False))
+    typer.echo(gcs_report(cfg).to_csv(index=False))
+
+
 @mimic_app.command("aggregate")
 def mimic_aggregate(
     config: Path,

@@ -175,3 +175,16 @@ def test_fixtures_inside_repo_are_refused_as_data_dir(cfg: MimicRunConfig) -> No
     raw["paths"]["data_dir"] = str(FIX)
     with pytest.raises(DataUseError):
         MimicRunConfig.model_validate(raw)
+
+
+def test_diagnose_is_aggregate_only(cfg: MimicRunConfig) -> None:
+    from calc_bounds.mimic.diagnose import gcs_report, troponin_report
+
+    runner.build_cohort(cfg)
+    trop = troponin_report(cfg)
+    assert list(trop["itemid"]) == [51003]
+    assert trop["heart_stays"].iloc[0] == 2
+    gcs = gcs_report(cfg)
+    assert {"curb65", "qsofa"} <= set(gcs["calculator"])
+    text = trop.to_csv() + gcs.to_csv()
+    assert not any(i in text for i in IDS)
