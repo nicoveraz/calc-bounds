@@ -63,6 +63,34 @@ def troponin_report(cfg: MimicRunConfig) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _shape(value: str) -> str:
+    """Text shape of a lab value with every digit replaced by 9 ('<0.01' -> '<9.99')."""
+    return re.sub(r"[0-9]", "9", " ".join(value.split()).upper())[:40]
+
+
+def troponin_value_shapes(cfg: MimicRunConfig, itemid: int) -> pd.DataFrame:
+    """Shapes of the first `itemid` result's text when it has no number (counts only)."""
+    from calc_bounds.mimic.runner import table_dirs
+
+    crit = load_criteria(cfg.criteria)
+    d = table_dirs(cfg)
+    cases = [
+        c
+        for c in read_jsonl(cfg.run_dir() / "cases.jsonl", TR.MimicCase)
+        if c.calculator == "heart"
+    ]
+    stays = pd.DataFrame(
+        {"stay_id": [c.stay_id for c in cases], "subject_id": [c.subject_id for c in cases]}
+    ).merge(T.load_edstays(d)[["stay_id", "intime"]], on="stay_id")
+    labs = T.load_labevents(d, {itemid}, set(stays["subject_id"]))
+    first = TR._first_labs(stays, labs, itemid, crit.windows.labs_hours).drop_duplicates("stay_id")
+    text = first.loc[first["valuenum"].isna(), "value"].fillna("<empty>").astype(str)
+    counts = text.map(_shape).value_counts()
+    return pd.DataFrame(
+        {"shape": counts.index, "stays": [_count(int(n), cfg.min_cell_count) for n in counts]}
+    )
+
+
 def gcs_report(cfg: MimicRunConfig) -> pd.DataFrame:
     """Per calculator: stays whose record has a GCS-based value (from ICU charting)."""
     cases = read_jsonl(cfg.run_dir() / "cases.jsonl", TR.MimicCase)

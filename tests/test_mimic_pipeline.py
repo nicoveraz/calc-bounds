@@ -188,3 +188,10 @@ def test_diagnose_is_aggregate_only(cfg: MimicRunConfig) -> None:
     assert {"curb65", "qsofa"} <= set(gcs["calculator"])
     text = trop.to_csv() + gcs.to_csv()
     assert not any(i in text for i in IDS)
+
+
+def test_value_shape_hides_digits() -> None:
+    from calc_bounds.mimic.diagnose import _shape
+
+    assert _shape(" <0.01 ") == "<9.99"
+    assert _shape("less than 0.01") == "LESS THAN 9.99"

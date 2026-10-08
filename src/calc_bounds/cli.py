@@ -254,10 +254,13 @@ def mimic_run(config: Path, extractor: str = MIMIC_EXTRACTOR_OPT) -> None:
 def mimic_diagnose(config: Path) -> None:
     """Aggregate-only diagnostics: troponin items in the window, GCS coverage."""
     from calc_bounds.mimic.config import load_mimic_config
-    from calc_bounds.mimic.diagnose import gcs_report, troponin_report
+    from calc_bounds.mimic.criteria import load_criteria
+    from calc_bounds.mimic.diagnose import gcs_report, troponin_report, troponin_value_shapes
 
     cfg = load_mimic_config(config)
     typer.echo(troponin_report(cfg).to_csv(index=False))
+    tnt = load_criteria(cfg.criteria).itemids.troponin_t
+    typer.echo(troponin_value_shapes(cfg, tnt).to_csv(index=False))
     typer.echo(gcs_report(cfg).to_csv(index=False))
 
 
