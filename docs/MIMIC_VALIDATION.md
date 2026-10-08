@@ -89,6 +89,14 @@ determined (the bounds over the record collapse to one category). Cases where th
 leaves the category open have no reference and count only in outcomes that need none.
 
 ### Physician annotation
+Two kinds of item, marked in the template's `analysis` column:
+- **primary:** judgement items no structured source can provide (HEART history and ECG,
+  Wells "PE most likely", DVT signs). Used in every analysis.
+- **secondary:** items the record usually lacks (confusion / altered mentation without an ICU
+  GCS). Annotated from the note and used only with `mimic run --secondary` and
+  `mimic aggregate --secondary` (outputs under `<extractor>+secondary`). Because this
+  reference is read from the same note the model reads, it is reported separately.
+
 `mimic annotation-template CONFIG [--n 100]` writes `annotation_template.csv` (case id,
 subject/admission/note ids, item, allowed values, empty `value`). It holds ids only, no note
 text, and stays in the output directory. The annotator reads the note in their own MIMIC
@@ -185,7 +193,7 @@ All are operational definitions written by us. Code and config carry the marker.
 | M5 | HEART cohort | chief-complaint regex or ED codes R07.1/R07.2/R07.8/R07.9, 786.5 | `mimic_criteria.yaml` |
 | M6 | PERC / Wells cohort | D-dimer measured (PERC's low-pretest population is not identifiable) | `mimic_criteria.yaml` |
 | M7 | Comorbidity codes | lists per item; history/status codes for atherosclerotic disease; current-use codes for smoking; any C code for malignancy | `mimic_criteria.yaml` |
-| M8 | Confusion proxy | CURB-65 confusion = GCS < 15 (same as qSOFA altered mentation); intubated or sedated patients not handled | `truth.gcs`, `mimic_criteria.yaml` |
+| M8 | Confusion proxy | CURB-65 confusion = GCS < 15 (same as qSOFA altered mentation); intubated or sedated patients not handled. **Decided (2026-10-08):** GCS exists only for ICU stays, so primary analysis leaves confusion / altered mentation Unknown when there is no GCS; a secondary analysis (`--secondary`) adds them annotated from the note on the annotation sample | `truth.gcs`, `mimic_criteria.yaml` (`secondary_annotation_params`) |
 | M9 | Troponin | troponin T vs `ref_range_upper` as the upper reference limit; assay generation and sex-specific cut-offs not modelled (Paper 1 item 27) | `truth.troponin_level` |
 | M10 | Triage SpO2 | used as "on room air", which triage does not guarantee (PERC) | `truth.VITALS` |
 | M11 | Note sections | sections kept and stop headings; discharge exam and labs cut | `mimic_criteria.yaml` |

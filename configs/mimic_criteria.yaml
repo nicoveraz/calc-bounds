@@ -94,6 +94,12 @@ comorbidity_icd:
 # Judgement items: stay Unknown in structured truth; physician annotation only.
 annotation_params: [heart_history, heart_ecg, pe_most_likely, dvt_signs]
 
+# Decided with the author (2026-10-08): GCS exists only for ICU stays, so confusion /
+# altered mentation are Unknown for most records. PRIMARY analysis: leave them Unknown.
+# SECONDARY analysis (`--secondary`): the physician annotates them from the note on the
+# annotation sample. Note-derived reference: reported as a limitation.
+secondary_annotation_params: [confusion, altered_mentation]
+
 # TODO(physician-review): which discharge-summary sections approximate "known in the ED".
 # A kept section runs until the next heading listed under keep or stop. Discharge exam and
 # discharge labs are cut off by the stop list.

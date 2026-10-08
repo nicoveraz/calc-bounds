@@ -195,6 +195,9 @@ mimic_app = typer.Typer(
 app.add_typer(mimic_app, name="mimic")
 
 MIMIC_EXTRACTOR_OPT = typer.Option("oracle", help="Key in `extractors`, or 'oracle' (no model).")
+MIMIC_SECONDARY_OPT = typer.Option(
+    False, "--secondary", help="Secondary analysis: add items annotated from the note."
+)
 MIMIC_OUT_OPT = typer.Option(Path("results/mimic"), help="Where aggregate tables go.")
 
 
@@ -242,12 +245,14 @@ def mimic_import_annotations(config: Path, filled: Path) -> None:
 
 
 @mimic_app.command("run")
-def mimic_run(config: Path, extractor: str = MIMIC_EXTRACTOR_OPT) -> None:
+def mimic_run(
+    config: Path, extractor: str = MIMIC_EXTRACTOR_OPT, secondary: bool = MIMIC_SECONDARY_OPT
+) -> None:
     """Extraction -> S1 / S3 / S4 / S3-bin with the EHR as the clinician (row-level outputs)."""
     from calc_bounds.mimic import runner
     from calc_bounds.mimic.config import load_mimic_config
 
-    typer.echo(f"wrote {runner.run(load_mimic_config(config), extractor)}")
+    typer.echo(f"wrote {runner.run(load_mimic_config(config), extractor, secondary)}")
 
 
 @mimic_app.command("diagnose")
@@ -269,9 +274,11 @@ def mimic_aggregate(
     config: Path,
     extractor: str = MIMIC_EXTRACTOR_OPT,
     out: Path = MIMIC_OUT_OPT,
+    secondary: bool = MIMIC_SECONDARY_OPT,
 ) -> None:
     """Aggregate tables only (counts, rates, Wilson CIs, means); safe to commit."""
     from calc_bounds.mimic import runner
     from calc_bounds.mimic.config import load_mimic_config
 
-    typer.echo(f"wrote {runner.aggregate(load_mimic_config(config), extractor, out)}")
+    cfg = load_mimic_config(config)
+    typer.echo(f"wrote {runner.aggregate(cfg, extractor, out, secondary)}")

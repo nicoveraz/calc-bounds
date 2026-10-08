@@ -179,14 +179,23 @@ def build_cohort(cfg: MimicRunConfig) -> Path:
     return cfg.run_dir()
 
 
-def load_cases(cfg: MimicRunConfig) -> list[TR.MimicCase]:
-    """Cases with any imported physician annotations applied."""
+SECONDARY_SUFFIX = "+secondary"
+
+
+def load_cases(cfg: MimicRunConfig, secondary: bool = False) -> list[TR.MimicCase]:
+    """Cases with imported physician annotations applied; secondary items only if asked."""
     cases = read_jsonl(cfg.run_dir() / "cases.jsonl", TR.MimicCase)
     path = cfg.run_dir() / "annotations.json"
     if path.exists():
         ann = json.loads(path.read_text())
-        cases = [TR.apply_annotations(c, ann.get(c.case_id, {})) for c in cases]
+        cases = [
+            TR.apply_annotations(c, ann.get(c.case_id, {}), secondary=secondary) for c in cases
+        ]
     return cases
+
+
+def rows_name(extractor: str, secondary: bool) -> str:
+    return extractor + (SECONDARY_SUFFIX if secondary else "")
 
 
 # --- Stage 2: annotation ----------------------------------------------------------------------
@@ -247,14 +256,17 @@ def extract(
     )
 
 
-def run(cfg: MimicRunConfig, extractor: str = ORACLE) -> Path:
-    """Extraction -> policies with the EHR as the clinician -> row-level tables."""
+def run(cfg: MimicRunConfig, extractor: str = ORACLE, secondary: bool = False) -> Path:
+    """Extraction -> policies with the EHR as the clinician -> row-level tables. With
+    `secondary`, items annotated from the note (e.g. confusion) join the structured truth;
+    extraction is identical (cached), only the reference and the EHR's answers change."""
     if extractor != ORACLE and extractor not in cfg.extractors:
         known = [ORACLE, *cfg.extractors]
         raise ValueError(f"unknown extractor {extractor!r}; expected one of {known}")
     assert_no_proxy_for_local()
     calcs = calculators(cfg)
-    cases = load_cases(cfg)
+    cases = load_cases(cfg, secondary)
+    name = rows_name(extractor, secondary)
     notes = {n.hadm_id: n for n in read_jsonl(cfg.run_dir() / "notes.jsonl", SectionedNote)}
     results = extract(cfg, extractor, cases, notes)
     write_jsonl(_out(cfg, "extractions", f"{extractor}.jsonl"), results)
@@ -272,8 +284,8 @@ def run(cfg: MimicRunConfig, extractor: str = ORACLE) -> Path:
             t = policy.run(case, note.text, calc, precomputed, EHRClinician(case.truth))
             traces.append(t)
             policy_rows.append(policy_row(case, calc, t))
-    write_jsonl(_out(cfg, "traces", f"{extractor}.jsonl"), traces)
-    rows = cfg.run_dir() / "rows" / extractor
+    write_jsonl(_out(cfg, "traces", f"{name}.jsonl"), traces)
+    rows = cfg.run_dir() / "rows" / name
     rows.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(case_rows).to_csv(rows / "cases.csv", index=False)
     pd.DataFrame(policy_rows).to_csv(rows / "policies.csv", index=False)
@@ -294,9 +306,10 @@ def _read_rows(path: Path) -> pd.DataFrame:
     return df
 
 
-def aggregate(cfg: MimicRunConfig, extractor: str, out: Path) -> Path:
-    """Aggregate-only tables to `out/<run_id>/<extractor>/` (safe to commit)."""
-    rows = cfg.run_dir() / "rows" / extractor
+def aggregate(cfg: MimicRunConfig, extractor: str, out: Path, secondary: bool = False) -> Path:
+    """Aggregate-only tables to `out/<run_id>/<extractor>[+secondary]/` (safe to commit)."""
+    name = rows_name(extractor, secondary)
+    rows = cfg.run_dir() / "rows" / name
     tables = aggregate_tables(
         _read_rows(rows / "cases.csv"),
         _read_rows(rows / "policies.csv"),
@@ -305,7 +318,7 @@ def aggregate(cfg: MimicRunConfig, extractor: str, out: Path) -> Path:
     )
     flow = pd.read_csv(cfg.run_dir() / "cohort_flow.csv")
     tables["cohort_flow"] = suppress_counts(flow, FLOW_COUNTS, cfg.min_cell_count)
-    dest = out / cfg.run_id / extractor
+    dest = out / cfg.run_id / name
     dest.mkdir(parents=True, exist_ok=True)
     for name, t in tables.items():
         t.to_csv(dest / f"{name}.csv", index=False)

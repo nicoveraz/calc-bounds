@@ -73,6 +73,8 @@ class MimicCase(BaseModel):
     truth_source: dict[ParamId, str]
     needs_annotation: list[ParamId]
     """Judgement items still without a value (physician annotation pending)."""
+    needs_secondary_annotation: list[ParamId] = []
+    """Items missing from the record, annotated from the note for the secondary analysis."""
     implausible: list[ParamId] = []
 
 
@@ -308,20 +310,31 @@ def make_case(
         truth=truth,
         truth_source={p: record.source[p] for p in truth},
         needs_annotation=[p for p in ids if p in crit.annotation_params and p not in truth],
+        needs_secondary_annotation=[
+            p for p in ids if p in crit.secondary_annotation_params and p not in truth
+        ],
         implausible=[p for p in record.implausible if p in ids],
     )
 
 
-def apply_annotations(case: MimicCase, values: dict[ParamId, Value]) -> MimicCase:
-    """Add physician-annotated judgement items to the structured truth."""
-    ids = {
-        p for p in values if p in case.needs_annotation or case.truth_source.get(p) == "annotation"
-    }
+def apply_annotations(
+    case: MimicCase, values: dict[ParamId, Value], *, secondary: bool = False
+) -> MimicCase:
+    """Add physician-annotated judgement items to the structured truth. Secondary items
+    (annotated from the note because the record lacks them) are applied only when
+    `secondary` is set."""
+    allowed = set(case.needs_annotation)
+    if secondary:
+        allowed |= set(case.needs_secondary_annotation)
+    ids = {p for p in values if p in allowed or case.truth_source.get(p) == "annotation"}
     return case.model_copy(
         update={
             "truth": case.truth | {p: values[p] for p in ids},
             "truth_source": case.truth_source | dict.fromkeys(ids, "annotation"),
             "needs_annotation": [p for p in case.needs_annotation if p not in ids],
+            "needs_secondary_annotation": [
+                p for p in case.needs_secondary_annotation if p not in ids
+            ],
         }
     )
 

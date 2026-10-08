@@ -125,6 +125,9 @@ class MimicCriteria(Strict):
     never False (Unknown is never Absent)."""
     annotation_params: tuple[ParamId, ...]
     """Judgement items that structured data cannot provide; physician annotation only."""
+    secondary_annotation_params: tuple[ParamId, ...] = ()
+    """Items the record usually lacks (e.g. confusion without ICU GCS). Annotated from the
+    note for a SECONDARY analysis only; the primary analysis leaves them Unknown."""
     note_sections: NoteSections
 
     @model_validator(mode="after")
@@ -133,6 +136,7 @@ class MimicCriteria(Strict):
         re.compile(self.cohorts.suspected_infection.antibiotic_pattern)
         re.compile(self.cohorts.suspected_infection.exclude_drug_pattern)
         overlap = set(self.comorbidity_icd) & set(self.annotation_params)
+        overlap |= set(self.annotation_params) & set(self.secondary_annotation_params)
         if overlap:
             raise ValueError(f"params both ICD-mapped and annotated: {sorted(overlap)}")
         return self

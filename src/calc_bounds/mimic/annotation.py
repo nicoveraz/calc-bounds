@@ -31,6 +31,7 @@ COLUMNS = [
     "hadm_id",
     "note_id",
     "param",
+    "analysis",
     "allowed_values",
     "value",
     "annotator",
@@ -54,17 +55,24 @@ def allowed_values(spec: ParameterSpec) -> list[str]:
 def annotation_template(
     cases: list[MimicCase], n_per_calculator: int | None, seed: int
 ) -> pd.DataFrame:
-    """Rows for every case with pending judgement items; a seeded sample of
-    `n_per_calculator` cases per calculator if given."""
+    """Rows for every case with pending items; a seeded sample of `n_per_calculator` cases
+    per calculator if given. `analysis` is "primary" (judgement items) or "secondary" (items
+    the record lacks, used only in the secondary analysis)."""
     rows = []
     for calc_id in sorted({c.calculator for c in cases}):
-        pending = [c for c in cases if c.calculator == calc_id and c.needs_annotation]
+        pending = [
+            c
+            for c in cases
+            if c.calculator == calc_id and (c.needs_annotation or c.needs_secondary_annotation)
+        ]
         pool = sorted(pending, key=lambda c: c.case_id)
         if n_per_calculator is not None:
             rng = np.random.default_rng(stable_seed(seed, "annotation", calc_id))
             pool = [pool[i] for i in sorted(rng.permutation(len(pool))[:n_per_calculator])]
         for c in pool:
-            for p in c.needs_annotation:
+            items = [(p, "primary") for p in c.needs_annotation]
+            items += [(p, "secondary") for p in c.needs_secondary_annotation]
+            for p, analysis in items:
                 rows.append(
                     {
                         "case_id": c.case_id,
@@ -73,6 +81,7 @@ def annotation_template(
                         "hadm_id": c.hadm_id,
                         "note_id": c.note_id,
                         "param": p,
+                        "analysis": analysis,
                         "allowed_values": " | ".join(allowed_values(SPECS[p])),
                         "value": "",
                         "annotator": "",
@@ -117,7 +126,7 @@ def read_annotations(path: Path, cases: list[MimicCase]) -> dict[str, dict[Param
         if case is None:
             errors.append(f"line {i}: unknown case {row.case_id!r}")
             continue
-        if row.param not in case.needs_annotation:
+        if row.param not in (*case.needs_annotation, *case.needs_secondary_annotation):
             errors.append(f"line {i}: {row.param!r} is not pending for {row.case_id}")
             continue
         if (row.case_id, row.param) in seen:

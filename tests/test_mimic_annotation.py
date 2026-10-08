@@ -104,3 +104,19 @@ def test_import_reports_every_error(tmp_path: Path) -> None:
         read_annotations(path, cases)
     msg = str(e.value)
     assert "maybe" in msg and "unknown case" in msg and "not pending" in msg
+
+
+def test_secondary_items_are_annotated_but_applied_only_on_request(tmp_path) -> None:
+    curb = _case(7, "curb65").model_copy(update={"needs_secondary_annotation": ["confusion"]})
+    t = annotation_template([curb], None, seed=1)
+    assert t[["param", "analysis"]].values.tolist() == [["confusion", "secondary"]]
+    t.loc[:, "value"] = "yes"
+    path = tmp_path / "filled.csv"
+    t.to_csv(path, index=False)
+    got = read_annotations(path, [curb])
+    primary = apply_annotations(curb, got[curb.case_id])
+    assert "confusion" not in primary.truth  # primary analysis: stays Unknown
+    secondary = apply_annotations(curb, got[curb.case_id], secondary=True)
+    assert secondary.truth["confusion"] is True
+    assert secondary.truth_source["confusion"] == "annotation"
+    assert secondary.needs_secondary_annotation == []
