@@ -53,10 +53,16 @@ class TableDirs(BaseModel):
     notes_path: Path
 
 
+class TableFileError(RuntimeError):
+    """A MIMIC table file is missing, empty or corrupt (e.g. an interrupted download)."""
+
+
 def table_path(directory: Path, name: str) -> Path:
     for suffix in (".csv.gz", ".csv"):
         path = directory / f"{name}{suffix}"
         if path.exists():
+            if path.stat().st_size == 0:
+                raise TableFileError(f"{path} is empty (0 bytes); download it again")
             return path
     raise FileNotFoundError(f"no {name}.csv.gz or {name}.csv in {directory}")
 
@@ -75,7 +81,25 @@ def read_table(
     columns: list[str],
     keep: Callable[[pd.DataFrame], pd.Series] | None = None,
 ) -> pd.DataFrame:
-    """Read `columns` of a CSV(.gz); with `keep`, read in chunks and keep matching rows only."""
+    """Read `columns` of a CSV(.gz); with `keep`, read in chunks and keep matching rows only.
+
+    A truncated .gz raises EOFError, which the CLI framework would turn into a bare
+    "Aborted!"; re-raise it naming the file.
+    """
+    try:
+        return _read_table(path, columns, keep)
+    except (EOFError, OSError, UnicodeDecodeError) as exc:
+        raise TableFileError(
+            f"{path} could not be read ({type(exc).__name__}: {exc}); "
+            "it is probably an incomplete download: verify it against SHA256SUMS.txt"
+        ) from exc
+
+
+def _read_table(
+    path: Path,
+    columns: list[str],
+    keep: Callable[[pd.DataFrame], pd.Series] | None,
+) -> pd.DataFrame:
     if keep is None:
         return _typed(pd.read_csv(path, usecols=columns, dtype=str))
     parts = []

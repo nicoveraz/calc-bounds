@@ -16,7 +16,7 @@ DIRS = T.TableDirs(
 def test_table_path_prefers_gz_then_csv(tmp_path: Path) -> None:
     (tmp_path / "x.csv").write_text("a\n1\n")
     assert T.table_path(tmp_path, "x").name == "x.csv"
-    (tmp_path / "x.csv.gz").write_bytes(b"")
+    (tmp_path / "x.csv.gz").write_bytes(b"not empty")
     assert T.table_path(tmp_path, "x").name == "x.csv.gz"
     with pytest.raises(FileNotFoundError):
         T.table_path(tmp_path, "missing")
@@ -73,3 +73,20 @@ def test_other_loaders() -> None:
     notes = T.load_discharge_notes(DIRS, {98000001, 98000006})
     assert set(notes["note_id"]) == {"98000001-DS-1", "98000006-DS-1"}
     assert notes["text"].str.contains("SYNTHETIC").all()
+
+
+def test_empty_or_truncated_table_names_the_file(tmp_path) -> None:
+    import gzip
+
+    import pytest
+
+    from calc_bounds.mimic.tables import TableFileError, read_table, table_path
+
+    (tmp_path / "omr.csv.gz").write_bytes(b"")
+    with pytest.raises(TableFileError, match="0 bytes"):
+        table_path(tmp_path, "omr")
+
+    data = gzip.compress(b"subject_id,hadm_id\n1,2\n" * 1000)
+    (tmp_path / "admissions.csv.gz").write_bytes(data[: len(data) // 2])
+    with pytest.raises(TableFileError, match="incomplete download"):
+        read_table(tmp_path / "admissions.csv.gz", ["subject_id", "hadm_id"])
