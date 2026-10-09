@@ -235,6 +235,26 @@ def mimic_annotation_template(
     typer.echo(f"wrote {runner.export_annotations(load_mimic_config(config), n)}")
 
 
+@mimic_app.command("annotate")
+def mimic_annotate(
+    config: Path,
+    annotator: str = typer.Option(..., help="Your initials, stored with each answer."),
+) -> None:
+    """Annotate pending items in the terminal, case by case; saves after every answer."""
+    from calc_bounds.io import read_jsonl
+    from calc_bounds.mimic.annotate import load_progress, run_session
+    from calc_bounds.mimic.config import load_mimic_config
+    from calc_bounds.mimic.notes import SectionedNote
+
+    cfg = load_mimic_config(config)
+    run = cfg.run_dir()
+    template, filled = run / "annotation_template.csv", run / "annotation_filled.csv"
+    notes = {n.note_id: n.text for n in read_jsonl(run / "notes.jsonl", SectionedNote)}
+    progress = load_progress(template, filled)
+    run_session(progress, notes.__getitem__, lambda df: df.to_csv(filled, index=False), annotator)
+    typer.echo(f"saved {filled}. Import with: calc-bounds mimic import-annotations CONFIG {filled}")
+
+
 @mimic_app.command("import-annotations")
 def mimic_import_annotations(config: Path, filled: Path) -> None:
     """Validate a filled annotation template and store it with the run."""
