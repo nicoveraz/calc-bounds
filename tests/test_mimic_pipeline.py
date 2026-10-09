@@ -108,6 +108,7 @@ def test_oracle_run_annotate_and_aggregate(cfg: MimicRunConfig, tmp_path: Path) 
         "policies.csv",
         "extraction.csv",
         "questions.csv",
+        "numeric_agreement.csv",
     }
     for p in dest.iterdir():
         text = p.read_text()

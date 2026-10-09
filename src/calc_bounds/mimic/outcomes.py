@@ -83,11 +83,28 @@ def claim_agrees(
     raise TypeError(spec.domain)
 
 
+RATIO_BUCKETS = [0.0, 0.5, 0.9, 1.1, 2.0, 2.5, 3.2, 10.0, float("inf")]
+"""Edges for note/record ratios of numeric claims. 2.5-3.2 catches BUN mg/dL read as urea
+mmol/L (factor 2.8); 0.9-1.1 is agreement."""
+
+
+def numeric_ratio(spec: ParameterSpec, e: Extraction, truth: Value | None) -> float | None:
+    """Canonical note value / record value for a present numeric claim (None otherwise)."""
+    if truth is None or not isinstance(e, Present) or not isinstance(spec.domain, NumericDomain):
+        return None
+    try:
+        x = to_canonical(spec.id, float(e.value), e.unit or spec.domain.unit)
+    except (UnitError, ValueError):
+        return None
+    return x / float(truth) if float(truth) else None
+
+
 def claim_rows(case: MimicCase, calc: Calculator, ext: ExtractionResult) -> list[dict[str, Any]]:
     rows = []
     for p in calc.parameters:
         e = ext.values.get(p.id, Unknown())
         agrees, exact = claim_agrees(calc, p, e, case.truth.get(p.id))
+        ratio = numeric_ratio(p, e, case.truth.get(p.id))
         rows.append(
             {
                 "case_id": case.case_id,
@@ -99,9 +116,28 @@ def claim_rows(case: MimicCase, calc: Calculator, ext: ExtractionResult) -> list
                 "exact": exact,
                 "confidence": getattr(e, "confidence", None),
                 "confidence_source": getattr(e, "confidence_source", None),
+                "unit_given": bool(getattr(e, "unit", None)) if isinstance(e, Present) else None,
+                "ratio_bucket": None
+                if ratio is None
+                else str(pd.cut([ratio], RATIO_BUCKETS, right=False)[0]),
             }
         )
     return rows
+
+
+def numeric_agreement(claims: pd.DataFrame, min_cell: int) -> pd.DataFrame:
+    """Counts of present numeric claims by unit given / note-to-record ratio bucket."""
+    cols = {"ratio_bucket", "unit_given"}
+    if not cols <= set(claims.columns):
+        return pd.DataFrame(columns=["calculator", "param", "unit_given", "ratio_bucket", "n"])
+    c = claims.dropna(subset=["ratio_bucket"])
+    t = (
+        c.groupby(["calculator", "param", "unit_given", "ratio_bucket"], observed=True)
+        .size()
+        .reset_index(name="n")
+    )
+    t["n"] = t["n"].map(lambda n: str(n) if n >= min_cell else f"<{min_cell}")
+    return t
 
 
 def _risk_cmp(calc: Calculator, a: str | None, b: str | None) -> int | None:
@@ -295,6 +331,7 @@ def aggregate_tables(
             ext, "n", min_cell, ["calculator", "param", "extracted_state", "metric"]
         ),
         "questions": suppress(q, "n_cases", min_cell, ["calculator", "policy"]),
+        "numeric_agreement": numeric_agreement(claims, min_cell),
     }
     for name, t in tables.items():
         leaked = IDENTIFIER_COLUMNS & set(t.columns)

@@ -223,3 +223,16 @@ def test_aggregates_suppress_small_groups_and_carry_no_ids() -> None:
     flow = pd.DataFrame({"calculator": ["x"], "eligible": [500], "admitted": [3], "with_note": [0]})
     s = suppress_counts(flow, ["eligible", "admitted", "with_note"], 10)
     assert list(s.iloc[0]) == ["x", 500, "<10", 0]
+
+
+def test_numeric_ratio_flags_bun_read_as_urea() -> None:
+    from calc_bounds.mimic.outcomes import RATIO_BUCKETS, numeric_ratio
+    from calc_bounds.mimic.truth import SPECS
+    from calc_bounds.types import EvidenceSpan, Present
+
+    ev = EvidenceSpan(start=0, end=6, text="BUN-28")
+    # BUN 28 mg/dL written without a unit is taken as urea 28 mmol/L: ratio ~2.8
+    e = Present(value=28.0, unit=None, confidence=0.9, confidence_source="logprob", evidence=ev)
+    r = numeric_ratio(SPECS["urea"], e, 10.0)
+    assert r is not None and 2.5 <= r < 3.2
+    assert RATIO_BUCKETS[5] == 2.5
