@@ -17,15 +17,15 @@ windows:
 itemids:
   bun: 51006                 # from the design doc
   creatinine: 50912          # from the design doc
-  troponin_t: 51003          # from the design doc
+  troponin_t: 51003          # verified: only troponin item with results in the HEART pilot
   d_dimer: 50915             # TODO(physician-review): verify in d_labitems
-  gcs_eye: 220739            # TODO(physician-review): verify in d_items
-  gcs_verbal: 223900         # TODO(physician-review): verify in d_items
-  gcs_motor: 223901          # TODO(physician-review): verify in d_items
+  gcs_eye: 220739            # verified in d_items v2.2 (GCS - Eye Opening), 2026-10-08
+  gcs_verbal: 223900         # verified in d_items v2.2 (GCS - Verbal Response), 2026-10-08
+  gcs_motor: 223901          # verified in d_items v2.2 (GCS - Motor Response), 2026-10-08
 
 omr:
-  weight_lbs: "Weight (Lbs)" # TODO(physician-review): verify omr.result_name
-  bmi: "BMI (kg/m2)"         # TODO(physician-review): verify omr.result_name
+  weight_lbs: "Weight (Lbs)" # verified in omr v2.2, 2026-10-08
+  bmi: "BMI (kg/m2)"         # verified in omr v2.2, 2026-10-08
 
 cohorts:
   # TODO(physician-review): CURB-65 population = pneumonia as principal diagnosis of an

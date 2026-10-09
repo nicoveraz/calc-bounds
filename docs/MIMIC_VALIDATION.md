@@ -186,7 +186,7 @@ All are operational definitions written by us. Code and config carry the marker.
 
 | # | Item | Implemented | Where |
 |---|---|---|---|
-| M1 | Itemids and omr names | BUN 51006, creatinine 50912, troponin T 51003 (from the design); D-dimer 50915; GCS 220739 / 223900 / 223901; omr "Weight (Lbs)", "BMI (kg/m2)". Verify against `d_labitems`, `d_items`, `omr` | `mimic_criteria.yaml` |
+| M1 | Itemids and omr names | **Verified 2026-10-08** against MIMIC-IV 2.2: GCS 220739 / 223900 / 223901, omr "Weight (Lbs)" and "BMI (kg/m2)", troponin T 51003 (troponin I 51002 / 52642 had no results in the HEART pilot). D-dimer 50915 not yet verified (PERC/Wells not run) | `mimic_criteria.yaml` |
 | M2 | Time windows | vitals fallback 4 h; labs [arrival, +24 h]; GCS 24 h; omr ± 365 days; suspicion of infection [−6 h, +24 h] | `mimic_criteria.yaml` |
 | M3 | CURB-65 cohort | pneumonia J12–J18 / 480–486 as principal diagnosis | `mimic_criteria.yaml` |
 | M4 | qSOFA cohort | Seymour pairing (72 h / 24 h); illustrative antibiotic regex, topical routes excluded; any culture | `mimic_criteria.yaml` |
