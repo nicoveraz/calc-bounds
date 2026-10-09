@@ -107,14 +107,16 @@ def llm_extract(
 # --- Post-extraction rules (code, not model) ---------------------------------------------------
 
 STRUCTURED_HEADER = "\n\n[Structured record]"
-_BUN = re.compile(r"\bBUN\b", re.IGNORECASE)
+_BUN = re.compile(r"\bBUN\b|\burea\s*n(?:itrogen)?\b", re.IGNORECASE)
+"""BUN as written in US notes: 'BUN 28', and MIMIC lab lines 'UreaN-28' / 'urea nitrogen'."""
 _ANALYTE_UNITS = {"urea_mg/dL", "bun_mg/dL"}
 
 
 def bun_unit_rule(ext: ExtractionResult) -> ExtractionResult:
-    """Urea claims whose evidence quotes BUN are BUN in mg/dL (US reporting), whatever unit
-    the model returned. MIMIC notes write 'BUN-28' with no unit; reading it as urea mmol/L
-    inflated urea about 2.8-fold in the pilot. Decided by code from the evidence span."""
+    """Urea claims whose evidence quotes BUN ('BUN', 'UreaN', 'urea nitrogen') are BUN in
+    mg/dL (US reporting), whatever unit the model returned. MIMIC lab lines write 'UreaN-28'
+    with no unit; reading it as urea mmol/L inflated urea about 2.8-fold in the pilot.
+    Decided by code from the evidence span."""
     e = ext.values.get("urea")
     if not isinstance(e, Present) or e.unit in _ANALYTE_UNITS or not _BUN.search(e.evidence.text):
         return ext

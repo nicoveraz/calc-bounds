@@ -19,6 +19,8 @@ def test_bun_quote_is_read_as_bun_mg_dl() -> None:
         e = bun_unit_rule(_urea("BUN-28", unit)).values["urea"]
         assert e.unit == "bun_mg/dL"
         assert abs(to_canonical("urea", e.value, e.unit) - 10.0) < 0.05  # 28 mg/dL BUN
+    for quote in ("BLOOD UreaN-28", "urea nitrogen 28", "Urea N 28"):
+        assert bun_unit_rule(_urea(quote, "mmol/L")).values["urea"].unit == "bun_mg/dL"
     assert bun_unit_rule(_urea("Urea 28 mmol/L", "mmol/L")).values["urea"].unit == "mmol/L"
     assert bun_unit_rule(_urea("BUN 28", "urea_mg/dL")).values["urea"].unit == "urea_mg/dL"
 

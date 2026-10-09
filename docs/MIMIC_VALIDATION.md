@@ -120,7 +120,7 @@ text, so the exact-substring check of Paper 1 still applies.
     sections, so the note alone can never state them; any EHR shows them beside the note.
     They are appended to the note text as a `[Structured record]` line so evidence spans stay
     exact substrings. "Determined by the note" therefore means note plus demographics.
-  - *BUN rule:* a urea claim whose evidence quotes "BUN" is BUN in mg/dL whatever unit the
+  - *BUN rule:* a urea claim whose evidence quotes "BUN", "UreaN" (MIMIC lab lines) or "urea nitrogen" is BUN in mg/dL whatever unit the
     model returned (the pilot showed a ~2.8-fold urea inflation from BUN read as mmol/L).
 - **Extraction:** the Paper 1 prompt, JSON schema and parser
   (`extraction/llm.py`, prompt version recorded with each result), run by a local model,
