@@ -30,7 +30,13 @@ from calc_bounds.mimic.annotation import annotation_template, read_annotations
 from calc_bounds.mimic.clinician import EHRClinician
 from calc_bounds.mimic.config import ORACLE, MimicRunConfig, assert_no_proxy_for_local
 from calc_bounds.mimic.criteria import MimicCriteria, load_criteria
-from calc_bounds.mimic.extract import llm_extract, local_llm, structured_oracle
+from calc_bounds.mimic.extract import (
+    bun_unit_rule,
+    llm_extract,
+    local_llm,
+    structured_oracle,
+    with_structured_params,
+)
 from calc_bounds.mimic.notes import SectionedNote, sectioned_notes
 from calc_bounds.mimic.outcomes import (
     aggregate_tables,
@@ -269,6 +275,18 @@ def run(cfg: MimicRunConfig, extractor: str = ORACLE, secondary: bool = False) -
     name = rows_name(extractor, secondary)
     notes = {n.hadm_id: n for n in read_jsonl(cfg.run_dir() / "notes.jsonl", SectionedNote)}
     results = extract(cfg, extractor, cases, notes)
+    crit = load_criteria(cfg.criteria)
+    texts = {c.case_id: notes[c.hadm_id].text for c in cases}
+    if extractor != ORACLE:
+        by_id = {c.case_id: c for c in cases}
+        fixed = []
+        for r in results:
+            c = by_id[r.case_id]
+            r, texts[c.case_id] = with_structured_params(
+                calcs[c.calculator], c, bun_unit_rule(r), texts[c.case_id], crit.structured_params
+            )
+            fixed.append(r)
+        results = fixed
     write_jsonl(_out(cfg, "extractions", f"{extractor}.jsonl"), results)
     by_case = {r.case_id: r for r in results}
     precomputed = PrecomputedExtractor(extractor, by_case)
@@ -281,7 +299,7 @@ def run(cfg: MimicRunConfig, extractor: str = ORACLE, secondary: bool = False) -
         case_rows.append(case_row(case, calc, ext, note.fallback_full_text))
         claims += claim_rows(case, calc, ext)
         for policy in policies.values():
-            t = policy.run(case, note.text, calc, precomputed, EHRClinician(case.truth))
+            t = policy.run(case, texts[case.case_id], calc, precomputed, EHRClinician(case.truth))
             traces.append(t)
             policy_rows.append(policy_row(case, calc, t))
     write_jsonl(_out(cfg, "traces", f"{name}.jsonl"), traces)

@@ -102,6 +102,11 @@ annotation_params: [heart_history, heart_ecg, pe_most_likely, dvt_signs]
 # annotation sample. Note-derived reference: reported as a limitation.
 secondary_annotation_params: [confusion, altered_mentation]
 
+# Decided with the author (2026-10-09): MIMIC-IV-Note masks ages and the 'Sex:' header is
+# outside the kept sections, so age and sex come from the structured record (as any EHR shows
+# them), in every analysis and for every extractor.
+structured_params: [age, sex]
+
 # TODO(physician-review): which discharge-summary sections approximate "known in the ED".
 # A kept section runs until the next heading listed under keep or stop. Discharge exam and
 # discharge labs are cut off by the stop list.

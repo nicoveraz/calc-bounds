@@ -125,6 +125,8 @@ class MimicCriteria(Strict):
     never False (Unknown is never Absent)."""
     annotation_params: tuple[ParamId, ...]
     """Judgement items that structured data cannot provide; physician annotation only."""
+    structured_params: tuple[ParamId, ...] = ()
+    """Given from the structured record in every analysis (demographics), never extracted."""
     secondary_annotation_params: tuple[ParamId, ...] = ()
     """Items the record usually lacks (e.g. confusion without ICU GCS). Annotated from the
     note for a SECONDARY analysis only; the primary analysis leaves them Unknown."""

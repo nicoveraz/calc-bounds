@@ -6,7 +6,8 @@ every recorded value (False booleans as Absent). It is an upper bound for dry ru
 not an estimate of real notes.
 """
 
-from collections.abc import Mapping
+import re
+from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -26,7 +27,14 @@ from calc_bounds.llm.clients import make_client
 from calc_bounds.mimic.config import assert_local_provider
 from calc_bounds.mimic.notes import SectionedNote
 from calc_bounds.mimic.truth import MimicCase
-from calc_bounds.types import BoolDomain, DocumentedState
+from calc_bounds.types import (
+    BoolDomain,
+    DocumentedState,
+    EvidenceSpan,
+    NumericDomain,
+    OrdinalDomain,
+    Present,
+)
 
 NOTE_SOURCE = "mimic-discharge-sections"
 
@@ -94,3 +102,56 @@ def llm_extract(
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         return list(pool.map(work, cases))
+
+
+# --- Post-extraction rules (code, not model) ---------------------------------------------------
+
+STRUCTURED_HEADER = "\n\n[Structured record]"
+_BUN = re.compile(r"\bBUN\b", re.IGNORECASE)
+_ANALYTE_UNITS = {"urea_mg/dL", "bun_mg/dL"}
+
+
+def bun_unit_rule(ext: ExtractionResult) -> ExtractionResult:
+    """Urea claims whose evidence quotes BUN are BUN in mg/dL (US reporting), whatever unit
+    the model returned. MIMIC notes write 'BUN-28' with no unit; reading it as urea mmol/L
+    inflated urea about 2.8-fold in the pilot. Decided by code from the evidence span."""
+    e = ext.values.get("urea")
+    if not isinstance(e, Present) or e.unit in _ANALYTE_UNITS or not _BUN.search(e.evidence.text):
+        return ext
+    return ext.model_copy(
+        update={"values": ext.values | {"urea": e.model_copy(update={"unit": "bun_mg/dL"})}}
+    )
+
+
+def with_structured_params(
+    calc: Calculator, case: MimicCase, ext: ExtractionResult, note_text: str, params: Sequence[str]
+) -> tuple[ExtractionResult, str]:
+    """Give `params` (age, sex) from the structured record, as any EHR shows them beside the
+    note. MIMIC-IV-Note masks ages, so the note alone can never state them. The values are
+    appended to the note text as a short '[Structured record]' line so every claim keeps an
+    evidence span that is an exact substring of the text the policies see."""
+    ids = {p.id for p in calc.parameters}
+    text, values = note_text, dict(ext.values)
+    for pid in params:
+        if pid not in ids or pid not in case.truth:
+            continue
+        spec, v = calc.param(pid), case.truth[pid]
+        match spec.domain:
+            case OrdinalDomain(levels=levels):
+                piece, unit = f"{spec.label}: {levels[int(v)]}", None
+            case NumericDomain(unit=u):
+                piece, unit = f"{spec.label}: {float(v):g} {u}", u
+            case BoolDomain():
+                piece, unit = f"{spec.label}: {'yes' if v else 'no'}", None
+        if text == note_text:
+            text += STRUCTURED_HEADER
+        start = len(text) + 1
+        text += " " + piece + "."
+        values[pid] = Present(
+            value=v,
+            unit=unit,
+            confidence=1.0,
+            confidence_source="oracle",
+            evidence=EvidenceSpan(start=start, end=start + len(piece), text=piece),
+        )
+    return ext.model_copy(update={"values": values}), text

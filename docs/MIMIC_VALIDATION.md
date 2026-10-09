@@ -114,6 +114,14 @@ the full text is used and the fallback is counted. Evidence spans index into the
 text, so the exact-substring check of Paper 1 still applies.
 
 ### Extraction, policies, EHR as clinician
+- **Post-extraction rules (code, decided with the author 2026-10-09):**
+  - *Age and sex from the structured record* (`structured_params`), for every LLM extractor
+    and analysis: MIMIC-IV-Note masks ages and the `Sex:` header lies outside the kept
+    sections, so the note alone can never state them; any EHR shows them beside the note.
+    They are appended to the note text as a `[Structured record]` line so evidence spans stay
+    exact substrings. "Determined by the note" therefore means note plus demographics.
+  - *BUN rule:* a urea claim whose evidence quotes "BUN" is BUN in mg/dL whatever unit the
+    model returned (the pilot showed a ~2.8-fold urea inflation from BUN read as mmol/L).
 - **Extraction:** the Paper 1 prompt, JSON schema and parser
   (`extraction/llm.py`, prompt version recorded with each result), run by a local model,
   cache-first (cache key = request hash; cache in `paths.cache_dir`). Set `num_ctx` on Ollama
