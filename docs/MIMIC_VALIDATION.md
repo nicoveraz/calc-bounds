@@ -181,7 +181,13 @@ avoids committing local paths. Model-size scaling: one extractor entry per local
 - The reference standard exists only where the record settles the category; for HEART this
   requires annotation.
 
-## Review items (TODO(physician-review))
+## Review items
+
+**Status (2026-10-08):** reviewed by the author, an emergency physician. M1 verified against
+MIMIC-IV 2.2; M2–M5, M9 and M11 approved as written; M7 approved with I25.1 (chronic
+coronary atherosclerosis) added to atherosclerotic disease; M8 decided (primary: Unknown
+without ICU GCS; secondary: annotated from the note). M6 and M10 apply to PERC/Wells, which
+are not run.
 All are operational definitions written by us. Code and config carry the marker.
 
 | # | Item | Implemented | Where |

@@ -1,7 +1,9 @@
 # MIMIC cohort and structured-truth definitions (loaded by calc_bounds.mimic.criteria).
 #
-# TODO(physician-review): EVERY item in this file. These are operational definitions written
-# by us, not taken from a primary source. Itemids and omr names must also be checked against
+# Reviewed and approved by the author (emergency physician), 2026-10-08: windows (M2),
+# cohorts (M3-M5), comorbidity codes (M7, with I25.1 added), troponin bands (M9), note
+# sections (M11). Still open: D-dimer itemid and the PERC/Wells cohort (M6, M10; not run).
+# These remain operational definitions written by us, not taken from a primary source. Itemids and omr names must also be checked against
 # d_labitems / d_items / omr in the installed MIMIC version. Each item is listed in
 # docs/MIMIC_VALIDATION.md ("Review items").
 #
@@ -79,7 +81,7 @@ comorbidity_icd:
     icd10: [Z824]
     icd9: [V173]
   atherosclerotic_disease:   # history/status codes; acute MI/stroke of this stay excluded
-    icd10: [I252, I255, I256, I258, I259, Z951, Z955, Z9861, Z8673, I69, I702, I739]
+    icd10: [I251, I252, I255, I256, I258, I259, Z951, Z955, Z9861, Z8673, I69, I702, I739]
     icd9: ["412", "4140", V4581, V4582, V1254, "438", "4402", "4439"]
   prior_vte:
     icd10: [Z8671]
