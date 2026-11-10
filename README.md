@@ -54,6 +54,13 @@ future work.
 
 Details: [`docs/RESULTS.md`](docs/RESULTS.md) · tables and figures: [`paper/`](paper/)
 
+## Use the approach
+
+This repo holds the experiments. To use the bounds approach in your own tools or agents, see
+[**bounded-calcs**](https://github.com/nicoveraz/bounded-calcs): the same calculators as
+YAML specs with an exact bounding engine, available as a Python library and an MCP server.
+It returns whether the decision is settled and which unknown items are worth asking about.
+
 ## Scope
 - **Calculators:** HEART, CURB-65, qSOFA, PERC, Wells (PE, two-tier) and Cockcroft-Gault.
   Each cites its primary source; open clinical questions are listed in
