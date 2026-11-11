@@ -122,6 +122,28 @@ def tool_eval_report(config: Path) -> None:
 
 
 @app.command()
+def unit_traps(
+    config: Path,
+    provider: str = typer.Option(..., help="Provider that plays the agent (in tool_eval)."),
+    mode: str = typer.Option("contract", help="legacy, contract or site_bun."),
+) -> None:
+    """M7: run the unit-trap set (templated CURB-65 notes) with the bounded-calcs tool."""
+    from calc_bounds import unittraps
+
+    if mode not in unittraps.MODES:
+        raise typer.BadParameter(f"mode must be one of {unittraps.MODES}")
+    typer.echo(f"wrote {unittraps.run(load_config(config), provider, mode)}")  # type: ignore[arg-type]
+
+
+@app.command()
+def unit_traps_report(config: Path) -> None:
+    """M7: summary over every unit-trap trace file of the run."""
+    from calc_bounds import unittraps
+
+    typer.echo(f"wrote {unittraps.report(load_config(config))}")
+
+
+@app.command()
 def extract(
     config: Path,
     extractor: str = typer.Option(..., help="Key in `extractors`."),

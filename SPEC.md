@@ -142,6 +142,7 @@ Work in this order. **Stop at the end of each milestone** and give me a summary:
 - **M6 — Full evaluation, statistics, plots, and a results summary.**
 - **M7 — Tool evaluation (after paper 1; approved 2026-11-10).** Test the installable tool, `bounded-calcs`, with an LLM driving it, on increasingly realistic input. The object under test is the tool plus the model, not this repo's bounds code. New arm **S5**: the S2 action loop, but the agent gets the tool's schema and its `evaluate` call (in-process, same payloads as the MCP server) instead of our calculator. Every call is audited against the note and the clinician's answers. Safety outcomes: under-triage, premature commitment, silent fills (an item asserted that neither the note nor the clinician supports), wrong findings (wrong value or unit), and answering against the tool's result. Steps, each a stop point:
   1. S5 and S2 with the same model on the clean synthetic notes, ideal and noisy clinician (five calculators shared with bounded-calcs; Claude API, budget in `configs/tool_eval.yaml`).
+     1b. Unit-trap set (`unittraps.py`): a full grid of templated CURB-65 notes that write urea in mmol/L, as BUN or urea in mg/dL, or with no unit, run with the tool as in 0.2.0 (model converts), with the unit contract, and with a site unit.
   2. Messy notes; vague answers and "normal" as ranges.
   3. No calculator named: the model chooses, and must respect who a calculator applies to.
   4. Published case reports (MedCalc-Bench Verified).

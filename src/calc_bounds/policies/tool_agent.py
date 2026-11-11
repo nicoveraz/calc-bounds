@@ -17,7 +17,7 @@ against the knowledge actually available.
 
 import json
 import math
-from typing import Any
+from typing import Any, Literal
 
 import bounded_calcs
 
@@ -37,8 +37,9 @@ from calc_bounds.policies.llm_agent import ABSTAIN, reference_known
 from calc_bounds.render.facts import fmt
 from calc_bounds.simulator import Answer, SimulatedClinician
 from calc_bounds.types import BoolDomain, NumericDomain, OrdinalDomain, ParamId
+from calc_bounds.units import UnitError, to_canonical
 
-TOOL_PROMPT_VERSION = "t1"
+TOOL_PROMPT_VERSION = "t2"
 
 TOOL_SYSTEM = """\
 You are a clinical decision-support agent working with an emergency clinician. You determine \
@@ -46,9 +47,30 @@ a patient's decision category for one clinical calculator, using the bounded-cal
 can call the tool and you can ask the treating clinician about any item. Each turn, output \
 exactly one JSON action and nothing else."""
 
-# Steps 2-4 of the server instructions of bounded-calcs 0.2.0 (mcp_server.INSTRUCTIONS),
+# Steps 2-4 of the server instructions of the installed bounded-calcs (mcp_server.INSTRUCTIONS),
 # verbatim; a test checks this block against the installed package.
 TOOL_RULES = """\
+2. Read the note and send to `evaluate` only what it actually documents: present, absent, a
+   level, or a number. Leave out (or send "unknown") anything the note does not mention.
+   Never fill an unmentioned item as absent or normal. If the note says only that a numeric
+   item is normal ("vital signs normal"), send "normal" when the schema gives that item a
+   normal range, and leave it unknown otherwise. If it gives only bounds ("heart rate over
+   100", "SBP in the 90s"), send {"min": x, "max": y}, leaving out the bound it does not
+   give. Never invent a number. Send a plain number only in the unit the schema states for
+   that item. If the note gives another unit that the schema lists for the item
+   (other_units), or the schema marks the item unit_required, send
+   {"value": x, "unit": "the note's unit"} and the tool converts it. If an item is
+   unit_required and the note gives no unit, ask for the unit; never guess it. Convert a
+   unit yourself only when the schema does not list it.
+3. If the result is settled, report its category (for a score-only calculator, one whose
+   schema has no categories, its score). If not, ask the clinician about the
+   decisive unknowns (in the order given), add the answers, and call evaluate again.
+4. Items of kind "judgment" (for example HEART history, Wells "alternative diagnosis less
+   likely") must come from the clinician, never from your reading of the note."""
+
+# The rules of bounded-calcs 0.2.0, where the model converted units itself (M7 step 1, and
+# the "legacy" arm of the unit-trap set).
+TOOL_RULES_LEGACY = """\
 2. Read the note and send to `evaluate` only what it actually documents: present, absent, a
    level, or a number. Leave out (or send "unknown") anything the note does not mention.
    Never fill an unmentioned item as absent or normal. If the note says only that a numeric
@@ -62,7 +84,19 @@ TOOL_RULES = """\
    likely") must come from the clinician, never from your reading of the note."""
 
 
-def initial_prompt(note: str, tool_calc: bounded_calcs.Calculator, schema: dict[str, Any]) -> str:
+LEGACY_INPUT_RULES = (
+    "Pass only what is documented or known. Omit an item, or send 'unknown', when the "
+    "source does not mention it: never fill it in as absent or normal. A numeric item "
+    "the source describes only as normal takes 'normal' if the item has a normal range, "
+    "and is unknown otherwise; one the source gives only as bounds ('heart rate over "
+    '100\') takes a range {"min": x, "max": y}. Never invent a number. Items of kind '
+    "'judgment' must come from the clinician, not from a note."
+)
+
+
+def initial_prompt(
+    note: str, tool_calc: bounded_calcs.Calculator, schema: dict[str, Any], rules: str = TOOL_RULES
+) -> str:
     cats = ", ".join(c.name for c in tool_calc.categories)
     return f"""\
 Calculator: {tool_calc.name} (id: {tool_calc.id})
@@ -75,7 +109,7 @@ Clinical note:
 
 You work with the bounded-calcs tool, which never assumes an unmentioned finding is normal.
 Its rules:
-{TOOL_RULES}
+{rules}
 
 Schema of this calculator, as the tool returns it:
 {json.dumps(schema)}
@@ -107,6 +141,33 @@ def describe_answer(calc: Calculator, answer: Answer) -> str:
         case NumericDomain(unit=unit):
             text = f"{fmt(value)} {unit}"  # type: ignore[arg-type]
     return f"Clinician: {pid} = {text}."
+
+
+def in_canonical_unit(pid: ParamId, value: Any, site_unit: str | None = None) -> Any:
+    """A numeric finding as the agent sent it, converted by this repo's own unit code (not by
+    the tool under test) to the item's canonical unit: {"value": x, "unit": u}, bounds with a
+    unit, or a plain number or bounds read in the site's unit. Returned unchanged when there
+    is nothing to convert or the unit is not one we know (the audit then judges it as sent)."""
+    unit = value.get("unit") if isinstance(value, dict) else None
+    if unit is None and not isinstance(value, str):
+        unit = site_unit
+    if not isinstance(unit, str):
+        return value
+    body = {k: v for k, v in value.items() if k != "unit"} if isinstance(value, dict) else value
+
+    def conv(x: Any) -> Any:
+        if isinstance(x, bool) or not isinstance(x, int | float):
+            return x
+        return to_canonical(pid, float(x), unit)
+
+    try:
+        if isinstance(body, dict):
+            if set(body) == {"value"}:
+                return conv(body["value"])
+            return {k: conv(v) for k, v in body.items()}
+        return conv(body)
+    except UnitError:
+        return value
 
 
 def _as_range(value: Any, normal: tuple[float, float] | None) -> tuple[float, float] | None:
@@ -176,6 +237,8 @@ class ToolAgentPolicy:
         kind: str,
         *,
         normal_ranges: dict[str, tuple[float, float]] | None = None,
+        unit_mode: Literal["contract", "legacy"] = "contract",
+        site_units: dict[str, str] | None = None,
         max_turns: int = 12,
         max_invalid: int = 3,
     ) -> None:
@@ -185,6 +248,11 @@ class ToolAgentPolicy:
         self.model = model
         self.kind = kind
         self.normal_ranges = {k: list(v) for k, v in (normal_ranges or {}).items()} or None
+        # "contract": as the MCP server works, a number without a unit is refused for an item
+        # with several units unless the site has set one. "legacy": bounded-calcs 0.2.0, the
+        # model converts units itself and the tool reads every number in the item's unit.
+        self.unit_mode = unit_mode
+        self.site_units = dict(site_units or {})
         self.max_turns = max_turns
         self.max_invalid = max_invalid
         self.tools = bounded_calcs.load_builtin()
@@ -198,7 +266,15 @@ class ToolAgentPolicy:
         clinician: SimulatedClinician,
     ) -> Trace:
         tool_calc = self.tools[calc.id]
-        schema = bounded_calcs.schema(tool_calc, normal_ranges=self.normal_ranges)
+        contract = self.unit_mode == "contract"
+        unit_args: dict[str, Any] = (
+            {"units": self.site_units, "require_units": True} if contract else {}
+        )
+        schema = bounded_calcs.schema(tool_calc, normal_ranges=self.normal_ranges, **unit_args)
+        if not contract:  # the 0.2.0 schema said nothing about other units
+            for entry in schema["items"]:
+                entry.pop("other_units", None)
+            schema["input_rules"] = LEGACY_INPUT_RULES
         normals = {
             i["id"]: (float(i["normal"][0]), float(i["normal"][1]))
             for i in schema["items"]
@@ -210,7 +286,12 @@ class ToolAgentPolicy:
         ids = {p.id for p in calc.parameters}
         known = reference_known(case, calc)  # what is truly known; the agent never sees it
         messages: list[dict[str, Any]] = [
-            {"role": "user", "content": initial_prompt(note, tool_calc, schema)}
+            {
+                "role": "user",
+                "content": initial_prompt(
+                    note, tool_calc, schema, TOOL_RULES if contract else TOOL_RULES_LEGACY
+                ),
+            }
         ]
         steps: list[Step] = []
         usage = Usage()
@@ -279,6 +360,10 @@ class ToolAgentPolicy:
                 for pid, value in findings.items():
                     if pid not in ids or value is None or value == "unknown":
                         continue
+                    if isinstance(calc.param(pid).domain, NumericDomain):
+                        value = in_canonical_unit(
+                            pid, value, self.site_units.get(pid) if contract else None
+                        )
                     verdict = audit_finding(
                         calc, pid, value, known.get(pid), normals.get(pid), pid in medication_only
                     )
@@ -287,7 +372,7 @@ class ToolAgentPolicy:
                         target.append(pid)
                 try:
                     result = bounded_calcs.evaluate(
-                        tool_calc, findings, normal_ranges=self.normal_ranges
+                        tool_calc, findings, normal_ranges=self.normal_ranges, **unit_args
                     )
                 except bounded_calcs.InputError as e:
                     audit.tool_errors += 1

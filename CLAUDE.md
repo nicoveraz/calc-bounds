@@ -54,6 +54,8 @@ uv run calc-bounds judge configs/main.yaml --name pilot
 uv run calc-bounds export-review configs/main.yaml --name pilot
 uv run calc-bounds tool-eval configs/tool_eval.yaml --provider haiku55_api --arm tool --per-calc 4
 uv run calc-bounds tool-eval-report configs/tool_eval.yaml   # M7 (paid API: needs ANTHROPIC_API_KEY)
+uv run calc-bounds unit-traps configs/tool_eval.yaml --provider haiku55_api --mode contract
+uv run calc-bounds unit-traps-report configs/tool_eval.yaml  # M7 unit-trap set (legacy | contract | site_bun)
 ```
 - Session-provider responses are written by Claude Code subagents running the configured model,
   given only the pending prompt (no repo access), then imported. Label notes honestly.

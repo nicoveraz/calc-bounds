@@ -95,6 +95,7 @@ def _run(case: PatientCase, *, honest: bool = True, noise: ClinicianNoise | None
         "scripted",
         "session",
         normal_ranges=SITE,
+        site_units={"urea": "mmol/L"},  # the scripted model works in the cohort's own units
         max_turns=60,  # the scripted model re-evaluates after every answer
     )
     clinician = SimulatedClinician(
