@@ -97,6 +97,31 @@ def run(
 
 
 @app.command()
+def tool_eval(
+    config: Path,
+    provider: str = typer.Option(..., help="Provider that plays the agent (in tool_eval)."),
+    arm: str = typer.Option("tool", help="tool (S5, bounded-calcs) or calculator (S2)."),
+    clinician: str | None = CLINICIAN_OPT,
+    per_calc: int | None = typer.Option(None, help="Seeded subset per calculator (pilot)."),
+) -> None:
+    """M7: run an LLM agent with the bounded-calcs tool (or the plain calculator)."""
+    from calc_bounds import tooleval
+
+    if arm not in ("tool", "calculator"):
+        raise typer.BadParameter("arm must be 'tool' or 'calculator'")
+    cfg = _load(config, None, None, clinician)
+    typer.echo(f"wrote {tooleval.run(cfg, arm, provider, per_calc)}")  # type: ignore[arg-type]
+
+
+@app.command()
+def tool_eval_report(config: Path) -> None:
+    """M7: summary over every tool-eval trace file of the run."""
+    from calc_bounds import tooleval
+
+    typer.echo(f"wrote {tooleval.report(load_config(config))}")
+
+
+@app.command()
 def extract(
     config: Path,
     extractor: str = typer.Option(..., help="Key in `extractors`."),

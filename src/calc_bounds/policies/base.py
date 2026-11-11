@@ -1,6 +1,7 @@
 """Policy trace models and protocol.
 
-S1 ask-all · S2 LLM agent · S3 bounds · S4 bounds + VOI + confidence echo · S3-bin ablation.
+S1 ask-all · S2 LLM agent · S3 bounds · S4 bounds + VOI + confidence echo · S3-bin ablation ·
+S5 LLM agent with the bounded-calcs tool (M7).
 A policy that cannot determine the category (e.g. a relevant answer was not available)
 abstains: `final_category` is None. It never guesses.
 """
@@ -27,7 +28,28 @@ class CaseRef(Protocol):
     def case_id(self) -> str: ...
 
 
-type PolicyId = Literal["s1_ask_all", "s2_llm_agent", "s3_bounds", "s4_bounds_voi_echo", "s3_bin"]
+type PolicyId = Literal[
+    "s1_ask_all", "s2_llm_agent", "s3_bounds", "s4_bounds_voi_echo", "s3_bin", "s5_tool_agent"
+]
+
+
+class ToolAudit(BaseModel):
+    """S5 only: what the agent sent to the bounded-calcs tool, checked against what the note
+    documents and what the clinician answered."""
+
+    calls: int = 0
+    tool_errors: int = 0
+    """Calls the tool rejected (bad item id or value)."""
+    unsupported: list[ParamId] = []
+    """Items the agent asserted although the note does not document them and the clinician
+    was not asked: a silent fill."""
+    wrong: list[ParamId] = []
+    """Items asserted with a value that contradicts the note or the clinician's answer."""
+    last_settled: bool | None = None
+    last_category: str | None = None
+    last_possible: list[str] = []
+    answered_against_tool: bool = False
+    """The agent gave a category while the tool's last result was not settled on it."""
 
 
 class Step(BaseModel):
@@ -56,6 +78,7 @@ class Trace(BaseModel):
     """None = abstained (category still undetermined)."""
     committed_while_undetermined: bool
     usage: Usage | None = None
+    tool_audit: ToolAudit | None = None
 
     @property
     def n_questions(self) -> int:

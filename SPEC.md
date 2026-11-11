@@ -140,6 +140,13 @@ Work in this order. **Stop at the end of each milestone** and give me a summary:
 - **M4 — LLM extractors, calibration, and the anchor run.**
 - **M5 — S2 agent, S4, the S3-bin ablation, and the `es-CL` rendering of the same cohort.**
 - **M6 — Full evaluation, statistics, plots, and a results summary.**
+- **M7 — Tool evaluation (after paper 1; approved 2026-11-10).** Test the installable tool, `bounded-calcs`, with an LLM driving it, on increasingly realistic input. The object under test is the tool plus the model, not this repo's bounds code. New arm **S5**: the S2 action loop, but the agent gets the tool's schema and its `evaluate` call (in-process, same payloads as the MCP server) instead of our calculator. Every call is audited against the note and the clinician's answers. Safety outcomes: under-triage, premature commitment, silent fills (an item asserted that neither the note nor the clinician supports), wrong findings (wrong value or unit), and answering against the tool's result. Steps, each a stop point:
+  1. S5 and S2 with the same model on the clean synthetic notes, ideal and noisy clinician (five calculators shared with bounded-calcs; Claude API, budget in `configs/tool_eval.yaml`).
+  2. Messy notes; vague answers and "normal" as ranges.
+  3. No calculator named: the model chooses, and must respect who a calculator applies to.
+  4. Published case reports (MedCalc-Bench Verified).
+  5. MIMIC with local models only (PhysioNet rules; never through an API).
+  6. Spanish notes.
 
 ## Working style
 

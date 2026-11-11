@@ -1,0 +1,157 @@
+# M7 tool evaluation: the main run (same run_id, cohort and notes) plus LLM agents that drive
+# the bounded-calcs tool through the Claude API. Everything above `tool_eval` is main.yaml.
+run_id: main
+seed: 20260925
+output_dir: runs
+cache_dir: .cache/llm
+max_cost_usd: 70         # hard cap per command; cached calls are free
+
+calculators: [heart, curb65, qsofa, perc, wells_pe, cockcroft_gault]
+calculator_options:
+  cockcroft_gault:
+    thresholds_ml_min: [30, 60]   # TODO(physician-review): dosing cutoffs to use
+
+cohort:
+  n_per_calculator: 200
+  missingness: 0.3
+  normal_as_negation_rate: 0.5
+  undetermined_fraction: 0.5
+  trap_rates:
+    multiple_encounters: 0.1
+    negation: 0.2
+    mixed_units: 0.1
+    contradictory_values: 0.05
+    comorbidity_via_medication: 0.1
+
+renders:
+  # --- Paper 1 uses: sonnet (clean notes), messy (harder notes), local (bias subset). ---
+  # pilot, stage1, es_pilot and sonnet_es are kept for provenance (earlier stages; the
+  # Spanish arm is paused).
+  pilot:                  # small pilot before the full render
+    provider: sonnet_session
+    locales: [en-US]
+    subset_per_calculator: 10
+  stage1:                 # first 300 (50 per calculator), then check validation rates
+    provider: sonnet_session
+    locales: [en-US]
+    subset_per_calculator: 50
+  sonnet:                 # main cohort, all cases
+    provider: sonnet_session
+    locales: [en-US]
+  es_pilot:               # 12-note es-CL pilot (nested in sonnet_es)
+    provider: sonnet_cli
+    locales: [es-CL]
+    judge_provider: opus_cli
+    subset_per_calculator: 2
+    max_workers: 3
+  sonnet_es:              # es-CL rendering of the same cohort, directly from the structure
+    provider: sonnet_cli
+    locales: [es-CL]
+    judge_provider: opus_cli
+    max_workers: 3
+  messy:                  # harder notes: same cases and fact sheets, messy ED style
+    provider: sonnet_cli
+    locales: [en-US]
+    style: messy
+    judge_provider: opus_cli
+    subset_per_calculator: 100
+    max_workers: 3
+  local:                  # renderer-family bias subset: same cases rendered by the local model
+    provider: qwen_local
+    judge_provider: opus_cli
+    locales: [en-US]
+    subset_per_calculator: 25
+
+validation:
+  judge_provider: opus_session   # must differ from the renderer model
+  review_fraction: 0.2
+
+extractors:
+  qwen_local:
+    provider: qwen_local
+    max_workers: 1
+  haiku:
+    provider: haiku_cli
+    max_workers: 3
+
+extraction:               # what the policies use
+  kind: oracle            # or: llm, with extractor + render below
+  # extractor: haiku
+  # render: sonnet
+  calibration: isotonic
+  dev_fraction: 0.3
+
+agent:                    # S2: end-to-end LLM agent (Opus via headless Claude Code)
+  provider: opus_cli
+  render: sonnet
+  max_turns: 12
+  max_workers: 3
+
+clinicians:               # harder conditions, selected with --clinician <name>
+  noisy:
+    unavailable_rate:
+      heart_troponin: 0.1
+    noise:
+      dont_know_rate: 0.10  # "I don't know" to any question
+      wrong_rate: 0.05      # misremembered: flipped / off-by-one level / numeric off 10-25%
+      vague_rate: 0.25      # numeric answered as a +/-10% range (contains the truth)
+      vague_width: 0.10
+
+echo_threshold: 0.9       # S4 confidence echo (calibrated confidence)
+
+simulator:
+  unavailable_rate:
+    heart_troponin: 0.1
+
+policies: [s1_ask_all, s2_llm_agent, s3_bounds, s4_bounds_voi_echo, s3_bin]
+
+tool_eval:                # M7: S5 (bounded-calcs tool) and S2 (plain calculator) per provider
+  render: sonnet
+  providers: [haiku55_api, sonnet55_api]
+  max_turns: 12
+  max_workers: 6
+  normal_ranges:
+    urea: [2.5, 7.0]      # the cohort's "stated normal" urea range (params.py, absent_means)
+
+providers:
+  # Claude API. Prices per million tokens from platform.claude.com/docs/en/about-claude/pricing,
+  # checked 2026-11-10. The key is read from ANTHROPIC_API_KEY (never stored here).
+  haiku55_api:
+    kind: anthropic
+    model: claude-haiku-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 8000
+    effort: medium
+    price_per_mtok_in: 0.10
+    price_per_mtok_out: 0.50
+  sonnet55_api:
+    kind: anthropic
+    model: claude-sonnet-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 8000
+    effort: medium
+    price_per_mtok_in: 2.0
+    price_per_mtok_out: 10.0
+  sonnet_session:         # answered offline by a Claude Code session (Sonnet 5 subagents)
+    kind: session
+    model: claude-sonnet-5
+  opus_session:
+    kind: session
+    model: claude-opus-5-5
+  qwen_local:             # local open model (native Ollama API: logprobs + JSON schema)
+    kind: ollama
+    model: qwen3.5:9b
+    base_url: http://localhost:11434
+    max_tokens: 2048
+    temperature: 0.0
+    seed: 20260925
+    think: false
+  sonnet_cli:             # scripted renderer (headless Claude Code)
+    kind: claude_cli
+    model: claude-sonnet-5
+  opus_cli:               # judge for scripted renders; also the S2 agent (headless Claude Code)
+    kind: claude_cli
+    model: claude-opus-5-5
+  haiku_cli:              # Claude via headless Claude Code, billed to the subscription
+    kind: claude_cli
+    model: claude-haiku-4-5

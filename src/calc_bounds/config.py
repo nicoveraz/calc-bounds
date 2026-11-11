@@ -124,6 +124,20 @@ class AgentConfig(Strict):
     max_workers: int = Field(default=3, ge=1)
 
 
+class ToolEvalConfig(Strict):
+    """M7: LLM agents driving the bounded-calcs tool (S5), next to the S2 agent with the same
+    provider. Results live under `<run>/tooleval/`."""
+
+    render: str
+    """Render set whose notes the agents read."""
+    providers: list[str]
+    max_turns: int = 12
+    max_workers: int = Field(default=4, ge=1)
+    normal_ranges: dict[str, tuple[float, float]] = {}
+    """Site normal ranges passed to bounded-calcs (the cohort's "stated normal" ranges, where
+    they differ from the package defaults)."""
+
+
 class SimulatorConfig(Strict):
     name: str = "ideal"
     """Condition label; traces for non-ideal clinicians get their own files."""
@@ -152,6 +166,7 @@ class RunConfig(Strict):
     clinicians: dict[str, SimulatorConfig] = {}
     """Named alternative clinician conditions, selected with `--clinician <name>`."""
     agent: AgentConfig | None = None
+    tool_eval: ToolEvalConfig | None = None
     echo_threshold: float = Field(default=0.9, gt=0.0, le=1.0)
     """S4: confirm extracted decision-critical values whose calibrated confidence is below."""
     policies: list[
@@ -174,6 +189,12 @@ class RunConfig(Strict):
                 raise ValueError("extraction.extractor must name an entry in `extractors`")
             if self.extraction.render not in self.renders:
                 raise ValueError("extraction.render must name an entry in `renders`")
+        if self.tool_eval is not None:
+            for name in self.tool_eval.providers:
+                if name not in self.providers:
+                    raise ValueError(f"tool_eval: unknown provider {name!r}")
+            if self.tool_eval.render not in self.renders:
+                raise ValueError(f"tool_eval: unknown render {self.tool_eval.render!r}")
         if self.agent is not None:
             if self.agent.provider not in self.providers:
                 raise ValueError(f"agent: unknown provider {self.agent.provider!r}")

@@ -10,6 +10,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=1.8.0",
+    "bounded-calcs",
     "matplotlib>=3.11.2",
     "numpy>=2.5.3",
     "openai>=3.19.2",
@@ -49,3 +50,6 @@ addopts = "-ra --strict-markers -m 'not llm'"
 markers = [
     "llm: test makes a real LLM API call (skipped by default; run with -m llm)",
 ]
+
+[tool.uv.sources]
+bounded-calcs = { git = "https://github.com/nicoveraz/bounded-calcs", rev = "c7eaef7" }

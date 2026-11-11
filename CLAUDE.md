@@ -18,7 +18,8 @@ computes the score and decides which missing params are decision-relevant (score
   (they live in config).
 - **Dependencies:** only pydantic v2, pytest, hypothesis, pandas, numpy, scipy, statsmodels,
   matplotlib, pyyaml, typer, anthropic, openai (local OpenAI-compatible servers only),
-  scikit-learn (calibration only), ruff. Ask the user before adding anything else.
+  scikit-learn (calibration only), ruff, bounded-calcs (M7 tool evaluation). Ask the user before
+  adding anything else.
 - **No frameworks:** no LangChain/LlamaIndex/agent frameworks, no DB, no web UI. JSONL + pandas.
 - **Reproducibility:** every run = one YAML config, fully seeded; all LLM calls through the disk
   cache keyed by sha256(provider, model, messages, tools, params); track tokens and cost.
@@ -51,6 +52,8 @@ uv run calc-bounds render configs/main.yaml --name pilot # M3: render (session: 
 uv run calc-bounds import-responses configs/main.yaml runs/main/pending/render-pilot.jsonl R.jsonl
 uv run calc-bounds judge configs/main.yaml --name pilot
 uv run calc-bounds export-review configs/main.yaml --name pilot
+uv run calc-bounds tool-eval configs/tool_eval.yaml --provider haiku55_api --arm tool --per-calc 4
+uv run calc-bounds tool-eval-report configs/tool_eval.yaml   # M7 (paid API: needs ANTHROPIC_API_KEY)
 ```
 - Session-provider responses are written by Claude Code subagents running the configured model,
   given only the pending prompt (no repo access), then imported. Label notes honestly.

@@ -63,11 +63,20 @@ wheels = [
 ]
 
 [[package]]
+name = "bounded-calcs"
+version = "0.2.0"
+source = { git = "https://github.com/nicoveraz/bounded-calcs?rev=c7eaef7#c7eaef7550cfdbbffbd3fb00aa849ef0d393cb11" }
+dependencies = [
+    { name = "pyyaml" },
+]
+
+[[package]]
 name = "calc-bounds"
 version = "1.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
+    { name = "bounded-calcs" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "openai" },
@@ -90,6 +99,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=1.8.0" },
+    { name = "bounded-calcs", git = "https://github.com/nicoveraz/bounded-calcs?rev=c7eaef7" },
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "numpy", specifier = ">=2.5.3" },
     { name = "openai", specifier = ">=3.19.2" },
@@ -314,8 +324,8 @@ name = "httpcore2"
 version = "2.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "sys_platform != 'emscripten'" },
-    { name = "truststore", marker = "sys_platform != 'emscripten'" },
+    { name = "h11" },
+    { name = "truststore" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cb/f3/1db7aa2bc2524062192bb0e0323969492d1883152a232fe36eea65f4e35c/httpcore2-2.13.1.tar.gz", hash = "sha256:e0aa977abe17e69a3b820a24542a6fa88702676d83880b8d194dcd18408e5103", size = 68071, upload-time = "2026-09-23T07:47:22.372Z" }
 wheels = [

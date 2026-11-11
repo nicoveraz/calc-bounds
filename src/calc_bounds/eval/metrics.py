@@ -18,11 +18,11 @@ from calc_bounds.units import UnitError, to_canonical
 def conservative_category(t: Trace) -> str:
     """The decision with a conservative fallback: an undecided case gets the highest-risk
     category still possible (code policies, from their bounds) or the calculator's
-    highest-risk category (S2, which does not track bounds)."""
+    highest-risk category (the S2 and S5 agents, whose own bounds we do not see)."""
     calc = REGISTRY[t.calculator]
     if t.final_category is not None:
         return t.final_category
-    if t.policy == "s2_llm_agent" or t.final_bounds is None:
+    if t.policy in ("s2_llm_agent", "s5_tool_agent") or t.final_bounds is None:
         return calc.categories_by_risk()[-1]
     return calc.highest_risk(t.final_bounds.categories)
 
