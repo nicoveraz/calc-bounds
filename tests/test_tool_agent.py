@@ -167,3 +167,33 @@ def test_audit_finding() -> None:
     # A comorbidity implied only by a medication: present is acceptable, absent is not.
     assert audit_finding(curb, "confusion", "present", None, None, True) == "ok"
     assert audit_finding(curb, "confusion", "absent", None, None, True) == "wrong"
+
+
+def test_judgment_confirmations_are_counted_apart() -> None:
+    from calc_bounds.policies.base import Step
+    from calc_bounds.simulator import Answer
+    from calc_bounds.tooleval import judgment_confirmations
+
+    def step(pid: str, relevant: list[str]) -> Step:
+        answer = Answer(param=pid, status="answered", value=1)
+        return Step(
+            bounds=None, relevant=relevant, question=pid, reason="llm_choice", answer=answer
+        )
+
+    trace = Trace(
+        case_id="heart-x",
+        policy="s5_tool_agent",
+        calculator="heart",
+        extraction={"case_id": "heart-x", "values": {}},  # type: ignore[arg-type]
+        initial_known={},
+        steps=[
+            step("heart_history", ["heart_troponin"]),  # judgment, already known: confirmation
+            step("heart_history", ["heart_history"]),  # judgment, relevant: an ordinary question
+            step("age", ["heart_troponin"]),  # not a judgment: plainly irrelevant
+        ],
+        final_bounds=None,
+        final_score=None,
+        final_category=None,
+        committed_while_undetermined=False,
+    )
+    assert judgment_confirmations(trace) == 1

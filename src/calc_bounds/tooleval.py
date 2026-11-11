@@ -5,6 +5,7 @@ Outputs under `<run>/tooleval/`: `traces/<arm>__<provider>__<render>[__<clinicia
 and `summary.csv` / `summary.md` over every trace file present.
 """
 
+import functools
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Literal
@@ -104,6 +105,26 @@ def run(cfg: RunConfig, arm: Arm, provider: str, per_calc: int | None = None) ->
     return path
 
 
+@functools.cache
+def _tools() -> dict[str, bounded_calcs.Calculator]:
+    return bounded_calcs.load_builtin()
+
+
+def judgment_confirmations(trace: Trace) -> int:
+    """Questions about a clinician-judgment item that were not decision-relevant by the
+    reference knowledge: the note already states the judgment, and the agent asked the
+    clinician anyway. The tool's rules require that, so these are counted apart from
+    questions that could not change the category for any other reason."""
+    items = _tools()[trace.calculator].items
+    return sum(
+        s.question is not None
+        and s.relevant is not None
+        and s.question not in s.relevant
+        and items[s.question].kind == "judgment"
+        for s in trace.steps
+    )
+
+
 def case_table(cfg: RunConfig) -> pd.DataFrame:
     """One row per (arm, provider, clinician, case) over every trace file present."""
     cases = read_jsonl(run_dir(cfg) / "cohort.jsonl", PatientCase)
@@ -116,6 +137,7 @@ def case_table(cfg: RunConfig) -> pd.DataFrame:
         table.insert(0, "render", render)
         table.insert(0, "provider", provider)
         table.insert(0, "arm", arm)
+        table["n_judgment_confirmations"] = [judgment_confirmations(t) for t in traces]
         audits = [t.tool_audit for t in traces]
         table["tool_calls"] = [a.calls if a else None for a in audits]
         table["silent_fill"] = [bool(a.unsupported) if a else None for a in audits]
@@ -141,6 +163,11 @@ def summarize(table: pd.DataFrame) -> pd.DataFrame:
             "premature_commitment_rate": g["premature_commitment"].mean(),
             "mean_questions": g["n_questions"].mean(),
             "irrelevant_question_rate": g["n_irrelevant_questions"].sum()
+            / g["n_questions"].sum().where(lambda s: s > 0),
+            "judgment_confirmations_per_case": g["n_judgment_confirmations"].mean(),
+            "other_irrelevant_question_rate": (
+                g["n_irrelevant_questions"].sum() - g["n_judgment_confirmations"].sum()
+            )
             / g["n_questions"].sum().where(lambda s: s > 0),
             "silent_fill_rate": g["silent_fill"].apply(lambda s: s.dropna().astype(float).mean()),
             "wrong_finding_rate": g["wrong_finding"].apply(
