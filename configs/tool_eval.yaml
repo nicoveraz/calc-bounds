@@ -109,7 +109,7 @@ tool_eval:                # M7: S5 (bounded-calcs tool) and S2 (plain calculator
   render: sonnet
   providers: [haiku55_api, sonnet55_api]
   max_turns: 12
-  max_workers: 6
+  max_workers: 12
   normal_ranges:
     urea: [2.5, 7.0]      # the cohort's "stated normal" urea range (params.py, absent_means)
 
