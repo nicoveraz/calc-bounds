@@ -91,12 +91,15 @@ def run(cfg: RunConfig, arm: Arm, provider: str, per_calc: int | None = None) ->
         traces = list(pool.map(run_one, cases))
     path = traces_path(cfg, arm, provider)
     write_jsonl(path, traces)
-    tokens_in = sum(t.usage.input_tokens for t in traces if t.usage)
-    tokens_out = sum(t.usage.output_tokens for t in traces if t.usage)
-    listed = (tokens_in * pcfg.price_per_mtok_in + tokens_out * pcfg.price_per_mtok_out) / 1e6
+    usage = [t.usage for t in traces if t.usage]
+    recorded = sum(u.cost_usd for u in usage)
     print(
-        f"{arm} / {provider}: {len(traces)} cases, {tokens_in} input and {tokens_out} output "
-        f"tokens (list price ${listed:.2f}; newly spent this run ${llm.spent_usd:.2f})"
+        f"{arm} / {provider}: {len(traces)} cases; tokens: "
+        f"{sum(u.input_tokens for u in usage)} input, "
+        f"{sum(u.cache_write_tokens for u in usage)} cache write, "
+        f"{sum(u.cache_read_tokens for u in usage)} cache read, "
+        f"{sum(u.output_tokens for u in usage)} output; "
+        f"cost of these traces ${recorded:.2f} (newly spent this run ${llm.spent_usd:.2f})"
     )
     return path
 
@@ -119,8 +122,7 @@ def case_table(cfg: RunConfig) -> pd.DataFrame:
         table["n_silent_fill_items"] = [len(a.unsupported) if a else None for a in audits]
         table["wrong_finding"] = [bool(a.wrong) if a else None for a in audits]
         table["answered_against_tool"] = [a.answered_against_tool if a else None for a in audits]
-        table["input_tokens"] = [t.usage.input_tokens if t.usage else 0 for t in traces]
-        table["output_tokens"] = [t.usage.output_tokens if t.usage else 0 for t in traces]
+        table["cost_usd"] = [t.usage.cost_usd if t.usage else 0.0 for t in traces]
         frames.append(table)
     return pd.concat(frames, ignore_index=True)
 
@@ -147,8 +149,7 @@ def summarize(table: pd.DataFrame) -> pd.DataFrame:
             "answered_against_tool_rate": g["answered_against_tool"].apply(
                 lambda s: s.dropna().astype(float).mean()
             ),
-            "input_tokens_per_case": g["input_tokens"].mean(),
-            "output_tokens_per_case": g["output_tokens"].mean(),
+            "cost_usd_per_case": g["cost_usd"].mean(),
         }
     )
     return out.reset_index()

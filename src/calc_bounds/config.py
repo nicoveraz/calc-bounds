@@ -36,6 +36,11 @@ class ProviderConfig(Strict):
     notes). Unset = server default; unset values do not enter the request or its cache key."""
     price_per_mtok_in: float = 0.0
     price_per_mtok_out: float = 0.0
+    prompt_cache: bool = False
+    """anthropic only: automatic prompt caching (5-minute cache), which makes the repeated
+    prefix of a multi-turn agent cheaper. It does not change responses or cache keys."""
+    price_per_mtok_cache_write: float = 0.0
+    price_per_mtok_cache_read: float = 0.0
 
     @model_validator(mode="after")
     def _check(self) -> Self:

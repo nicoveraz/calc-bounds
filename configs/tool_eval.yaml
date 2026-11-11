@@ -4,7 +4,7 @@ run_id: main
 seed: 20260925
 output_dir: runs
 cache_dir: .cache/llm
-max_cost_usd: 70         # hard cap per command; cached calls are free
+max_cost_usd: 20         # hard cap per command; cached calls are free
 
 calculators: [heart, curb65, qsofa, perc, wells_pe, cockcroft_gault]
 calculator_options:
@@ -124,6 +124,9 @@ providers:
     effort: medium
     price_per_mtok_in: 0.10
     price_per_mtok_out: 0.50
+    prompt_cache: true
+    price_per_mtok_cache_write: 0.125
+    price_per_mtok_cache_read: 0.01
   sonnet55_api:
     kind: anthropic
     model: claude-sonnet-5-5
@@ -132,6 +135,9 @@ providers:
     effort: medium
     price_per_mtok_in: 2.0
     price_per_mtok_out: 10.0
+    prompt_cache: true
+    price_per_mtok_cache_write: 2.50
+    price_per_mtok_cache_read: 0.10
   sonnet_session:         # answered offline by a Claude Code session (Sonnet 5 subagents)
     kind: session
     model: claude-sonnet-5

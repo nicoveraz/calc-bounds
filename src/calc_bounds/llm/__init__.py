@@ -24,6 +24,10 @@ from pydantic import BaseModel
 class Usage(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
+    cache_write_tokens: int = 0
+    cache_read_tokens: int = 0
+    """Prompt caching (anthropic): tokens written to and read from the cache; `input_tokens`
+    then counts only the uncached part."""
     cost_usd: float = 0.0
     latency_s: float = 0.0
     cached: bool = False

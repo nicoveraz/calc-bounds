@@ -238,6 +238,8 @@ class ToolAgentPolicy:
             usage.input_tokens += resp.usage.input_tokens
             usage.output_tokens += resp.usage.output_tokens
             usage.cost_usd += resp.usage.cost_usd
+            usage.cache_write_tokens += resp.usage.cache_write_tokens
+            usage.cache_read_tokens += resp.usage.cache_read_tokens
             usage.latency_s += resp.usage.latency_s
             messages.append({"role": "assistant", "content": resp.text})
             try:

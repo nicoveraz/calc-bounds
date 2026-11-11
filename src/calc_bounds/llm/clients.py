@@ -46,6 +46,8 @@ class AnthropicClient:
             output_config["format"] = {"type": "json_schema", "schema": p["format"]}
         if output_config:
             kwargs["output_config"] = output_config
+        if self.cfg.prompt_cache:  # anthropic 1.8.0: top-level automatic caching
+            kwargs["cache_control"] = {"type": "ephemeral"}
         t0 = time.perf_counter()
         msg = self.client.messages.create(**kwargs)
         latency = time.perf_counter() - t0
@@ -54,9 +56,18 @@ class AnthropicClient:
         usage = Usage(
             input_tokens=msg.usage.input_tokens,
             output_tokens=msg.usage.output_tokens,
+            cache_write_tokens=msg.usage.cache_creation_input_tokens or 0,
+            cache_read_tokens=msg.usage.cache_read_input_tokens or 0,
             latency_s=latency,
         )
-        usage.cost_usd = cost(usage, self.cfg.price_per_mtok_in, self.cfg.price_per_mtok_out)
+        usage.cost_usd = (
+            cost(usage, self.cfg.price_per_mtok_in, self.cfg.price_per_mtok_out)
+            + (
+                usage.cache_write_tokens * self.cfg.price_per_mtok_cache_write
+                + usage.cache_read_tokens * self.cfg.price_per_mtok_cache_read
+            )
+            / 1e6
+        )
         return LLMResponse(
             text="".join(b.text for b in msg.content if b.type == "text"),
             usage=usage,
