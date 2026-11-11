@@ -43,8 +43,14 @@ def documented_findings(case: PatientCase) -> dict[str, Any]:
         elif isinstance(domain, OrdinalDomain):
             out[pid] = domain.levels[int(c.value)]
         else:
-            out[pid] = float(c.value)
+            out[pid] = _number(pid, float(c.value))
     return out
+
+
+def _number(pid: str, x: float) -> Any:
+    """A number as the tool's unit contract wants it: urea has several units, so it carries
+    its unit (the cohort's own, mmol/L); the other items take a plain number."""
+    return {"value": x, "unit": "mmol/L"} if pid == "urea" else x
 
 
 class ScriptedModel:
@@ -80,7 +86,7 @@ class ScriptedModel:
             elif m := re.match(r"Clinician: (\w+) = (.+)\.$", last):
                 value: Any = m[2]
                 if re.fullmatch(r"-?\d+(\.\d+)?( \S+)?", value):  # a number with its unit
-                    value = float(value.split()[0])
+                    value = _number(m[1], float(value.split()[0]))
                 self.findings[m[1]] = value
             action = {"action": "evaluate", "findings": self.findings}
         return LLMResponse(text=json.dumps(action), usage=Usage(), stop_reason="end_turn", raw={})
@@ -95,7 +101,6 @@ def _run(case: PatientCase, *, honest: bool = True, noise: ClinicianNoise | None
         "scripted",
         "session",
         normal_ranges=SITE,
-        site_units={"urea": "mmol/L"},  # the scripted model works in the cohort's own units
         max_turns=60,  # the scripted model re-evaluates after every answer
     )
     clinician = SimulatedClinician(

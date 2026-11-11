@@ -52,4 +52,4 @@ markers = [
 ]
 
 [tool.uv.sources]
-bounded-calcs = { git = "https://github.com/nicoveraz/bounded-calcs", rev = "e889ab6" }
+bounded-calcs = { git = "https://github.com/nicoveraz/bounded-calcs", rev = "9a19e82" }

@@ -39,7 +39,7 @@ from calc_bounds.simulator import Answer, SimulatedClinician
 from calc_bounds.types import BoolDomain, NumericDomain, OrdinalDomain, ParamId
 from calc_bounds.units import UnitError, to_canonical
 
-TOOL_PROMPT_VERSION = "t2"
+TOOL_PROMPT_VERSION = "t4"
 
 TOOL_SYSTEM = """\
 You are a clinical decision-support agent working with an emergency clinician. You determine \
@@ -58,10 +58,12 @@ TOOL_RULES = """\
    100", "SBP in the 90s"), send {"min": x, "max": y}, leaving out the bound it does not
    give. Never invent a number. Send a plain number only in the unit the schema states for
    that item. If the note gives another unit that the schema lists for the item
-   (other_units), or the schema marks the item unit_required, send
-   {"value": x, "unit": "the note's unit"} and the tool converts it. If an item is
-   unit_required and the note gives no unit, ask for the unit; never guess it. Convert a
-   unit yourself only when the schema does not list it.
+   (other_units), send {"value": x, "unit": "the note's unit"} and the tool converts it.
+   An item the schema marks unit_required always goes that way, with the unit exactly as
+   the note gives it (unit_labels says what each listed unit means). Only if the note gives
+   the number with no unit at all, send "unit": "not stated" when the schema shows a
+   site_unit for the item, and otherwise ask for the unit. Never guess a unit, and convert
+   one yourself only when the schema does not list it.
 3. If the result is settled, report its category (for a score-only calculator, one whose
    schema has no categories, its score). If not, ask the clinician about the
    decisive unknowns (in the order given), add the answers, and call evaluate again.
@@ -149,6 +151,8 @@ def in_canonical_unit(pid: ParamId, value: Any, site_unit: str | None = None) ->
     unit, or a plain number or bounds read in the site's unit. Returned unchanged when there
     is nothing to convert or the unit is not one we know (the audit then judges it as sent)."""
     unit = value.get("unit") if isinstance(value, dict) else None
+    if isinstance(unit, str) and unit.strip().lower() == bounded_calcs.engine.UNIT_NOT_STATED:
+        unit = None
     if unit is None and not isinstance(value, str):
         unit = site_unit
     if not isinstance(unit, str):
@@ -274,6 +278,7 @@ class ToolAgentPolicy:
         if not contract:  # the 0.2.0 schema said nothing about other units
             for entry in schema["items"]:
                 entry.pop("other_units", None)
+                entry.pop("unit_labels", None)
             schema["input_rules"] = LEGACY_INPUT_RULES
         normals = {
             i["id"]: (float(i["normal"][0]), float(i["normal"][1]))
