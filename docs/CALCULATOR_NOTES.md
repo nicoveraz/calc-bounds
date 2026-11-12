@@ -9,6 +9,24 @@ the population priors and accepted the implemented readings; code markers now re
 `REVIEWED(physician)`. Items verified only by abstract or secondary source
 ([A]/[S]) remain so; the full texts were not re-read.
 
+**Full texts read on 2026-11-12** (after the review; no criterion in the code changed): Kline
+2004 and 2008, van Belle 2006, Backus 2010 and 2013. Wells 2000 is still abstract-only. What
+they say on the source-type items below:
+
+- Item 11 (PERC SaO2): Kline 2004 full text, "pulse oximetry > 94%", room air; Kline 2008,
+  "pulse oximetry reading < 95% while the patient breathes room air". Same for whole numbers.
+- Item 12 (PERC surgery or trauma): Kline 2008, "requiring endotracheal intubation or
+  hospitalization in the previous 4 weeks"; Kline 2004, "requiring treatment with general
+  anesthesia in the previous 4 weeks". Open again as `TODO(physician-review)` in bounded-calcs.
+- Item 13 (PERC hormone use): Kline 2004, "oral contraceptives, hormone replacement or
+  estrogenic hormones use in males or female patients"; Kline 2008, "exogenous estrogen".
+- Wells PE: van Belle 2006 Table 1 has the seven items with the points used, "immobilization
+  (> 3 d) or surgery in the previous 4 wk", and unlikely at 4 or less, likely at more than 4.
+- HEART: Backus 2010 text gives troponin below the threshold 0, between 1 and 3 times 1, higher
+  than 3 times 2 (tables of 2010 and 2013: ">= 3x normal limit" 2); smoker "current or recent
+  (< 90 days)"; obesity BMI > 30; ST "depressions or elevations" 2 points; age 45 to 65 years
+  1 point in the text, "<= 45" 0 points in the tables.
+
 Verification key: **[P]** primary full text read · **[A]** abstract only (publisher full text
 not accessible) · **[S]** secondary source (NICE, MDCalc, NKF, later papers by the same group).
 
@@ -63,8 +81,8 @@ is self-consistent either way.
 
 - Six AJ, Backus BE, Kelder JC. Chest pain in the emergency room: value of the HEART score.
   *Neth Heart J* 2008;16(6):191–196. doi:10.1007/BF03086144. PMID 18665203. **[P]**
-- Backus BE et al. *Crit Pathw Cardiol* 2010;9(3):164–169. PMID 20802272. **[A]**
-- Backus BE et al. *Int J Cardiol* 2013;168(3):2153–2158. PMID 23465250. **[A]**
+- Backus BE et al. *Crit Pathw Cardiol* 2010;9(3):164–169. PMID 20802272. **[P]** (full text read 2026-11-12)
+- Backus BE et al. *Int J Cardiol* 2013;168(3):2153–2158. PMID 23465250. **[P]** (full text read 2026-11-12)
 - Backus BE et al. *Curr Cardiol Rev* 2011;7(1):2–8 (PMC3131711); Poldervaart JM et al. *BMC
   Cardiovasc Disord* 2013;13:77 (PMC3849098). **[P]**
 
@@ -118,8 +136,8 @@ Notes:
 
 ## PERC
 
-- Kline JA et al. *J Thromb Haemost* 2004;2(8):1247–1255. PMID 15304025. **[A]**
-- Kline JA et al. *J Thromb Haemost* 2008;6(5):772–780. PMID 18318689. **[A]**
+- Kline JA et al. *J Thromb Haemost* 2004;2(8):1247–1255. PMID 15304025. **[P]** (full text read 2026-11-12)
+- Kline JA et al. *J Thromb Haemost* 2008;6(5):772–780. PMID 18318689. **[P]** (full text read 2026-11-12)
 
 Implemented:
 - Score = number of criteria not met: age ≥ 50, HR ≥ 100, SaO2 < 95%, unilateral leg
@@ -131,7 +149,7 @@ Implemented:
 ## Wells criteria for PE (two-tier)
 
 - Wells PS et al. *Thromb Haemost* 2000;83(3):416–420. PMID 10744147. **[A]**
-- van Belle A et al. (Christopher Study). *JAMA* 2006;295(2):172–179. PMID 16403929. **[A]**
+- van Belle A et al. (Christopher Study). *JAMA* 2006;295(2):172–179. PMID 16403929. **[P]** (full text read 2026-11-12)
 - NICE NG158, Table 2 (adapted from Wells 2000). **[S]**
 
 Implemented:
