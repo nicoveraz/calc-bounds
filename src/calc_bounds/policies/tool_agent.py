@@ -32,7 +32,7 @@ from calc_bounds.calculators import Calculator
 from calc_bounds.cohort import PatientCase, TrapKind
 from calc_bounds.extraction import ExtractionResult, Extractor
 from calc_bounds.llm import LLM, LLMRequest, Usage
-from calc_bounds.policies.base import Step, ToolAudit, Trace
+from calc_bounds.policies.base import EndReason, Step, ToolAudit, Trace
 from calc_bounds.policies.llm_agent import ABSTAIN, reference_known
 from calc_bounds.render.facts import fmt
 from calc_bounds.simulator import Answer, SimulatedClinician
@@ -302,14 +302,17 @@ class ToolAgentPolicy:
         usage = Usage()
         audit = ToolAudit()
         category: str | None = None
+        end_reason: EndReason = "max_turns"
         invalid = 0
 
         def invalid_turn() -> bool:
-            nonlocal invalid
+            nonlocal invalid, end_reason
             invalid += 1
             messages.append(
                 {"role": "user", "content": "Invalid action; reply with one JSON action."}
             )
+            if invalid >= self.max_invalid:
+                end_reason = "invalid_actions"
             return invalid >= self.max_invalid
 
         for _ in range(self.max_turns):
@@ -338,6 +341,9 @@ class ToolAgentPolicy:
             if kind == "answer":
                 cat = action.get("category")
                 category = cat if cat in calc.category_names() else None
+                end_reason = (
+                    "answer" if category else "abstain" if cat == ABSTAIN else "invalid_answer"
+                )
                 break
             if kind == "ask" and action.get("item") in ids:
                 pid = action["item"]
@@ -407,5 +413,6 @@ class ToolAgentPolicy:
             final_category=category,
             committed_while_undetermined=category is not None and len(final.categories) > 1,
             usage=usage,
+            end_reason=end_reason,
             tool_audit=audit,
         )

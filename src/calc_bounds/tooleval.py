@@ -30,6 +30,7 @@ from calc_bounds.pipeline import (
     select_cases,
 )
 from calc_bounds.policies import Trace
+from calc_bounds.policies.base import PROTOCOL_FAILURES
 from calc_bounds.policies.llm_agent import LLMAgentPolicy
 from calc_bounds.policies.tool_agent import ToolAgentPolicy
 from calc_bounds.render import RenderedNote
@@ -148,6 +149,11 @@ def case_table(cfg: RunConfig) -> pd.DataFrame:
         table["wrong_finding"] = [bool(a.wrong) if a else None for a in audits]
         table["answered_against_tool"] = [a.answered_against_tool if a else None for a in audits]
         table["cost_usd"] = [t.usage.cost_usd if t.usage else 0.0 for t in traces]
+        table["end_reason"] = [t.end_reason for t in traces]
+        table["protocol_failure"] = [
+            None if t.end_reason is None else t.end_reason in PROTOCOL_FAILURES for t in traces
+        ]
+        table["latency_s"] = [t.usage.latency_s if t.usage else None for t in traces]
         frames.append(table)
     return pd.concat(frames, ignore_index=True)
 
@@ -160,6 +166,9 @@ def summarize(table: pd.DataFrame) -> pd.DataFrame:
             "n_cases": g.size(),
             "accuracy": g["correct"].mean(),
             "abstain_rate": g["abstained"].mean(),
+            "protocol_failure_rate": g["protocol_failure"].apply(
+                lambda s: s.dropna().astype(float).mean()
+            ),
             "accuracy_when_committed": committed["correct"].mean(),
             "under_triage_rate": g["under_triage"].mean(),
             "over_triage_rate": g["over_triage"].mean(),
@@ -180,6 +189,7 @@ def summarize(table: pd.DataFrame) -> pd.DataFrame:
                 lambda s: s.dropna().astype(float).mean()
             ),
             "cost_usd_per_case": g["cost_usd"].mean(),
+            "seconds_per_case": g["latency_s"].mean(),
         }
     )
     return out.reset_index()

@@ -234,3 +234,54 @@ def test_tool_eval_paired_comparisons_by_hand() -> None:
     questions = out.loc["n_questions"]
     assert (questions["only_a"], questions["only_b"]) == (0, 10) and questions["p"] < 0.01
     assert (out["p_holm"] >= out["p"]).all()
+
+
+class FixedReplies:
+    """Answers every turn with the next of a fixed list of texts (the last one repeats)."""
+
+    def __init__(self, texts: list[str]) -> None:
+        self.texts = texts
+        self.n = 0
+
+    def complete(self, request: LLMRequest, *, provider: str, stage: str = "") -> LLMResponse:
+        text = self.texts[min(self.n, len(self.texts) - 1)]
+        self.n += 1
+        return LLMResponse(text=text, usage=Usage(), stop_reason="end_turn", raw={})
+
+
+@pytest.mark.parametrize("arm", ["tool", "calculator"])
+@pytest.mark.parametrize(
+    ("texts", "expected"),
+    [
+        ([json.dumps({"action": "answer", "category": ABSTAIN})], "abstain"),
+        (['{"action": "answer", "category": "not-a-category"}'], "invalid_answer"),
+        (["I think the score is 3."], "invalid_actions"),
+        (['{"action": "ask"}', "oops", '{"action": "dance"}'], "invalid_actions"),
+        (['{"action": "ask", "item": "age", "parameter": "age", "question": "?"}'], "max_turns"),
+    ],
+)
+def test_end_reason_separates_protocol_failures_from_abstention(
+    cohort: list[PatientCase], arm: str, texts: list[str], expected: str
+) -> None:
+    from calc_bounds.policies.base import PROTOCOL_FAILURES
+    from calc_bounds.policies.llm_agent import LLMAgentPolicy
+
+    case = next(c for c in cohort if c.calculator == "curb65")
+    calc = REGISTRY[case.calculator]
+    model = FixedReplies(texts)
+    policy = (
+        ToolAgentPolicy(model, "m", {}, "m", "session", normal_ranges=SITE, max_turns=5)  # type: ignore[arg-type]
+        if arm == "tool"
+        else LLMAgentPolicy(model, "m", {}, "m", "session", max_turns=5)  # type: ignore[arg-type]
+    )
+    clinician = SimulatedClinician(case.truth, specs={p.id: p for p in calc.parameters}, seed=3)
+    t = policy.run(case, "note", calc, None, clinician)  # type: ignore[arg-type]
+    assert t.final_category is None
+    assert t.end_reason == expected
+    assert (t.end_reason in PROTOCOL_FAILURES) == (expected != "abstain")
+
+
+def test_end_reason_answer(cohort: list[PatientCase]) -> None:
+    case = next(c for c in cohort if c.calculator == "curb65")
+    t = _run(case)
+    assert t.final_category is not None and t.end_reason == "answer"

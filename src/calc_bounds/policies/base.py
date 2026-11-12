@@ -33,6 +33,15 @@ type PolicyId = Literal[
 ]
 
 
+type EndReason = Literal["answer", "abstain", "invalid_answer", "invalid_actions", "max_turns"]
+"""How an LLM agent's loop ended: a category ("answer"), a deliberate "cannot_determine"
+("abstain"), or a protocol failure: an answer whose category is not one of the calculator's
+("invalid_answer"), too many unparseable or unknown actions ("invalid_actions"), or every turn
+used without an answer ("max_turns"). All but "answer" leave `final_category` None."""
+
+PROTOCOL_FAILURES: frozenset[str] = frozenset({"invalid_answer", "invalid_actions", "max_turns"})
+
+
 class ToolAudit(BaseModel):
     """S5 only: what the agent sent to the bounded-calcs tool, checked against what the note
     documents and what the clinician answered."""
@@ -79,6 +88,8 @@ class Trace(BaseModel):
     committed_while_undetermined: bool
     usage: Usage | None = None
     tool_audit: ToolAudit | None = None
+    end_reason: EndReason | None = None
+    """S2/S5 agents only: how the loop ended. None in traces written before it was recorded."""
 
     @property
     def n_questions(self) -> int:

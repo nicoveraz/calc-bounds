@@ -25,7 +25,7 @@ from calc_bounds.cohort import PatientCase
 from calc_bounds.extraction import ExtractionResult, Extractor
 from calc_bounds.extraction.oracle import oracle_extractions
 from calc_bounds.llm import LLM, LLMRequest, Usage
-from calc_bounds.policies.base import Step, Trace
+from calc_bounds.policies.base import EndReason, Step, Trace
 from calc_bounds.render.facts import fmt
 from calc_bounds.simulator import SimulatedClinician
 from calc_bounds.types import BoolDomain, NumericDomain, OrdinalDomain, ParamId, Value
@@ -195,6 +195,7 @@ class LLMAgentPolicy:
         steps: list[Step] = []
         usage = Usage()
         category: str | None = None
+        end_reason: EndReason = "max_turns"
         invalid = 0
         for _ in range(self.max_turns):
             req = LLMRequest(
@@ -218,6 +219,7 @@ class LLMAgentPolicy:
             except (json.JSONDecodeError, KeyError, TypeError):
                 invalid += 1
                 if invalid >= self.max_invalid:
+                    end_reason = "invalid_actions"
                     break
                 messages.append(
                     {"role": "user", "content": "Invalid action; reply with one JSON action."}
@@ -226,6 +228,9 @@ class LLMAgentPolicy:
             if kind == "answer":
                 cat = action.get("category")
                 category = cat if cat in calc.category_names() else None
+                end_reason = (
+                    "answer" if category else "abstain" if cat == ABSTAIN else "invalid_answer"
+                )
                 break
             if kind == "ask" and action.get("parameter") in {p.id for p in calc.parameters}:
                 pid = action["parameter"]
@@ -263,6 +268,7 @@ class LLMAgentPolicy:
                 continue
             invalid += 1
             if invalid >= self.max_invalid:
+                end_reason = "invalid_actions"
                 break
             messages.append(
                 {"role": "user", "content": "Invalid action; reply with one JSON action."}
@@ -280,4 +286,5 @@ class LLMAgentPolicy:
             final_category=category,
             committed_while_undetermined=category is not None and len(final.categories) > 1,
             usage=usage,
+            end_reason=end_reason,
         )
