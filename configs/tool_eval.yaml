@@ -107,9 +107,9 @@ policies: [s1_ask_all, s2_llm_agent, s3_bounds, s4_bounds_voi_echo, s3_bin]
 
 tool_eval:                # M7: S5 (bounded-calcs tool) and S2 (plain calculator) per provider
   render: sonnet
-  providers: [haiku55_api, sonnet55_api]
+  providers: [haiku55_api, sonnet55_api, qwen35_9b_local, gemma4_local]
   max_turns: 12
-  max_workers: 12
+  max_workers: 12         # Claude API; local models are run with --max-workers 1
   normal_ranges:
     urea: [2.5, 7.0]      # the cohort's "stated normal" urea range (params.py, absent_means)
 
@@ -152,6 +152,28 @@ providers:
     temperature: 0.0
     seed: 20260925
     think: false
+  # M7 local arm (Ollama, native API). Separate from qwen_local so that the context window
+  # does not change the cache keys of the earlier local render. The tool arm's first prompt
+  # is up to ~4,050 tokens (messy HEART, as counted by Ollama) and grows each turn, so the
+  # default context (often 4,096) would truncate silently.
+  qwen35_9b_local:
+    kind: ollama
+    model: qwen3.5:9b
+    base_url: http://localhost:11434
+    max_tokens: 2048
+    temperature: 0.0
+    seed: 20260925
+    think: false
+    num_ctx: 16384
+  gemma4_local:
+    kind: ollama
+    model: gemma4:latest   # 7.5B, Q4_K_M
+    base_url: http://localhost:11434
+    max_tokens: 2048
+    temperature: 0.0
+    seed: 20260925
+    think: false
+    num_ctx: 16384
   sonnet_cli:             # scripted renderer (headless Claude Code)
     kind: claude_cli
     model: claude-sonnet-5

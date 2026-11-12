@@ -106,6 +106,9 @@ def tool_eval(
     notes: str | None = typer.Option(
         None, help="Render whose notes to use (key in `renders`); default tool_eval.render."
     ),
+    max_workers: int | None = typer.Option(
+        None, min=1, help="Parallel cases; default tool_eval.max_workers (1 for local models)."
+    ),
 ) -> None:
     """M7: run an LLM agent with the bounded-calcs tool (or the plain calculator)."""
     from calc_bounds import tooleval
@@ -118,6 +121,10 @@ def tool_eval(
             raise typer.BadParameter(f"--notes must be one of {sorted(cfg.renders)}")
         cfg = cfg.model_copy(
             update={"tool_eval": cfg.tool_eval.model_copy(update={"render": notes})}
+        )
+    if max_workers and cfg.tool_eval is not None:
+        cfg = cfg.model_copy(
+            update={"tool_eval": cfg.tool_eval.model_copy(update={"max_workers": max_workers})}
         )
     typer.echo(f"wrote {tooleval.run(cfg, arm, provider, per_calc)}")  # type: ignore[arg-type]
 
