@@ -12,6 +12,9 @@ from typing import Literal
 
 import bounded_calcs
 import pandas as pd
+from scipy.stats import wilcoxon
+from statsmodels.stats.contingency_tables import mcnemar
+from statsmodels.stats.multitest import multipletests
 
 from calc_bounds.cohort import PatientCase
 from calc_bounds.config import RunConfig
@@ -182,6 +185,91 @@ def summarize(table: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index()
 
 
+BINARY_OUTCOMES = ("correct", "abstained", "under_triage", "over_triage", "premature_commitment")
+
+
+def _paired(x: pd.DataFrame, y: pd.DataFrame) -> list[dict[str, object]]:
+    """Paired tests between two sets of rows on the cases they share: an exact McNemar test
+    per yes/no outcome, a Wilcoxon signed-rank test on the number of questions. Two-sided."""
+    x, y = x.set_index("case_id"), y.set_index("case_id")
+    ids = x.index.intersection(y.index)
+    x, y = x.loc[ids], y.loc[ids]
+    rows: list[dict[str, object]] = []
+    for outcome in BINARY_OUTCOMES:
+        a, b = x[outcome].astype(bool), y[outcome].astype(bool)
+        only_a, only_b = int((a & ~b).sum()), int((~a & b).sum())
+        table = [[int((a & b).sum()), only_a], [only_b, int((~a & ~b).sum())]]
+        rows.append(
+            {
+                "outcome": outcome,
+                "n": len(ids),
+                "a": float(a.mean()),
+                "b": float(b.mean()),
+                "only_a": only_a,
+                "only_b": only_b,
+                "test": "mcnemar_exact",
+                "p": float(mcnemar(table, exact=True).pvalue),
+            }
+        )
+    qa, qb = x["n_questions"], y["n_questions"]
+    differs = bool((qa != qb).any())
+    rows.append(
+        {
+            "outcome": "n_questions",
+            "n": len(ids),
+            "a": float(qa.mean()),
+            "b": float(qb.mean()),
+            "only_a": int((qa > qb).sum()),  # cases where a asked more
+            "only_b": int((qb > qa).sum()),
+            "test": "wilcoxon",
+            "p": float(wilcoxon(qa, qb).pvalue) if differs else 1.0,
+        }
+    )
+    return rows
+
+
+def comparisons(table: pd.DataFrame) -> pd.DataFrame:
+    """Paired tests on the same cases: the tool arm against the calculator arm for each model
+    and clinician, and one model against the other within each arm and clinician. `p` is not
+    corrected for the number of tests; `p_holm` is, over every row of the table."""
+    rows: list[dict[str, object]] = []
+
+    def add(what: str, fixed: dict[str, str], key: str, a: str, b: str) -> None:
+        sub = table
+        for column, value in fixed.items():
+            sub = sub[sub[column] == value]
+        x, y = sub[sub[key] == a], sub[sub[key] == b]
+        if len(x) and len(y):
+            rows.extend(
+                {"comparison": what, **fixed, "a_is": a, "b_is": b, **r} for r in _paired(x, y)
+            )
+
+    providers = sorted(table["provider"].unique())
+    for clinician in sorted(table["clinician"].unique()):
+        for provider in providers:
+            add(
+                "tool vs calculator",
+                {"provider": provider, "clinician": clinician},
+                "arm",
+                "tool",
+                "calculator",
+            )
+        for arm in sorted(table["arm"].unique()):
+            for i, first in enumerate(providers):
+                for second in providers[i + 1 :]:
+                    add(
+                        "model vs model",
+                        {"arm": arm, "clinician": clinician},
+                        "provider",
+                        first,
+                        second,
+                    )
+    out = pd.DataFrame(rows)
+    if len(out):
+        out["p_holm"] = multipletests(out["p"], method="holm")[1]
+    return out
+
+
 def report(cfg: RunConfig) -> Path:
     table = case_table(cfg)
     out = out_dir(cfg)
@@ -189,4 +277,7 @@ def report(cfg: RunConfig) -> Path:
     summary = summarize(table)
     summary.to_csv(out / "summary.csv", index=False)
     (out / "summary.md").write_text(to_markdown(summary.round(3)) + "\n")
+    tests = comparisons(table)
+    tests.to_csv(out / "comparisons.csv", index=False)
+    (out / "comparisons.md").write_text(to_markdown(tests.round(4)) + "\n")
     return out / "summary.md"

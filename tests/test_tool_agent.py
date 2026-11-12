@@ -203,3 +203,33 @@ def test_judgment_confirmations_are_counted_apart() -> None:
         committed_while_undetermined=False,
     )
     assert judgment_confirmations(trace) == 1
+
+
+def test_tool_eval_paired_comparisons_by_hand() -> None:
+    import pandas as pd
+
+    from calc_bounds.tooleval import comparisons
+
+    # Ten cases, one model, one clinician. The tool arm is right on all; the calculator arm
+    # is wrong on cases 0 to 5. Discordant pairs: 6 against 0, so the exact McNemar p is
+    # 2 * 0.5**6 = 0.03125. The calculator arm asks one more question on every case.
+    rows = []
+    for arm in ("tool", "calculator"):
+        for i in range(10):
+            rows.append(
+                {
+                    "arm": arm, "provider": "m", "clinician": "ideal", "case_id": f"c{i}",
+                    "correct": arm == "tool" or i >= 6, "abstained": False,
+                    "under_triage": False, "over_triage": arm == "calculator" and i < 6,
+                    "premature_commitment": False, "n_questions": 1 if arm == "tool" else 2,
+                }
+            )  # fmt: skip
+    out = comparisons(pd.DataFrame(rows)).set_index("outcome")
+    assert set(out["comparison"]) == {"tool vs calculator"}
+    correct = out.loc["correct"]
+    assert (correct["a"], correct["b"], correct["only_a"], correct["only_b"]) == (1.0, 0.4, 6, 0)
+    assert abs(correct["p"] - 0.03125) < 1e-12
+    assert out.loc["under_triage", "p"] == 1.0
+    questions = out.loc["n_questions"]
+    assert (questions["only_a"], questions["only_b"]) == (0, 10) and questions["p"] < 0.01
+    assert (out["p_holm"] >= out["p"]).all()
