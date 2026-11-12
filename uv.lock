@@ -65,7 +65,7 @@ wheels = [
 [[package]]
 name = "bounded-calcs"
 version = "0.2.0"
-source = { git = "https://github.com/nicoveraz/bounded-calcs?rev=9a19e82#9a19e82c2cda72bf45b82eacf1750985dc05f3a5" }
+source = { git = "https://github.com/nicoveraz/bounded-calcs?rev=c5d770c#c5d770cc2f540f007194c8d8d842edd2a7e69158" }
 dependencies = [
     { name = "pyyaml" },
 ]
@@ -99,7 +99,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=1.8.0" },
-    { name = "bounded-calcs", git = "https://github.com/nicoveraz/bounded-calcs?rev=9a19e82" },
+    { name = "bounded-calcs", git = "https://github.com/nicoveraz/bounded-calcs?rev=c5d770c" },
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "numpy", specifier = ">=2.5.3" },
     { name = "openai", specifier = ">=3.19.2" },
