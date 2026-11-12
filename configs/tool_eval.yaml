@@ -156,6 +156,12 @@ providers:
   # does not change the cache keys of the earlier local render. The tool arm's first prompt
   # is up to ~4,050 tokens (messy HEART, as counted by Ollama) and grows each turn, so the
   # default context (often 4,096) would truncate silently.
+  #
+  # Output-mode rule (fixed at the pilot, 2026-11-12, before any full-run data): local models
+  # run the calculator arm (S2) in plain JSON mode (json_format: json), not schema-constrained.
+  # The tool arm (S5) sends no schema, so its mode is unchanged. The Claude runs keep the
+  # schema (output_config.format). Pilot, 20 cases, calculator arm, schema -> plain JSON:
+  # protocol failures gemma4 80% -> 10%, qwen3.5 55% -> 15%.
   qwen35_9b_local:
     kind: ollama
     model: qwen3.5:9b
@@ -165,6 +171,7 @@ providers:
     seed: 20260925
     think: false
     num_ctx: 16384
+    json_format: json      # output-mode rule above
   gemma4_local:
     kind: ollama
     model: gemma4:latest   # 7.5B, Q4_K_M
@@ -174,10 +181,8 @@ providers:
     seed: 20260925
     think: false
     num_ctx: 16384
-    # S2 sends a JSON schema; gemma4's schema-constrained decoding emitted whitespace until
-    # max_tokens in 50 of 66 pilot calls (80% of cases unparseable). Plain JSON mode gives the
-    # same action as unconstrained output on those requests. The S5 arm sends no schema.
-    json_format: json
+    json_format: json      # output-mode rule above (under the schema, gemma4 emitted
+                           # whitespace until max_tokens in 50 of 66 pilot calls)
   sonnet_cli:             # scripted renderer (headless Claude Code)
     kind: claude_cli
     model: claude-sonnet-5
