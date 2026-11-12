@@ -35,7 +35,10 @@ class ProviderConfig(Strict):
     """ollama only: context window in tokens (Ollama's default can silently truncate long
     notes). Unset = server default; unset values do not enter the request or its cache key."""
     json_format: Literal["schema", "json"] = "schema"
-    """ollama only: how a request's JSON schema (`format`) is enforced. "schema" constrains
+    """ollama and anthropic: how a request's JSON schema (`format`) is enforced. For anthropic,
+    "json" sends no schema at all (the prompt alone asks for a JSON action), which is how the
+    S5 tool arm always runs; it exists to check that the schema in the S2 arm is not what
+    separates the two arms. For ollama: "schema" constrains
     decoding to the schema; "json" uses Ollama's plain JSON mode (any valid JSON object) and
     the schema is not sent. Plain mode is for models whose schema-constrained decoding
     degenerates (gemma4 in the S2 arm: whitespace until max_tokens). Only the non-default
@@ -55,8 +58,8 @@ class ProviderConfig(Strict):
             raise ValueError(f"{self.kind}: temperature/seed are not supported by current models")
         if self.kind == "openai_compat" and not self.base_url:
             raise ValueError("openai_compat needs base_url")
-        if self.json_format != "schema" and self.kind != "ollama":
-            raise ValueError(f"{self.kind}: json_format is for ollama only")
+        if self.json_format != "schema" and self.kind not in ("ollama", "anthropic"):
+            raise ValueError(f"{self.kind}: json_format is for ollama and anthropic only")
         return self
 
     def request_params(self) -> dict[str, object]:

@@ -42,7 +42,8 @@ class AnthropicClient:
         output_config: dict[str, Any] = {}
         if "effort" in p:
             output_config["effort"] = p["effort"]
-        if "format" in p:  # a JSON schema (anthropic 1.8.0: JSONOutputFormatParam)
+        # a JSON schema (anthropic 1.8.0: JSONOutputFormatParam); not sent in plain JSON mode
+        if "format" in p and p.get("json_format") != "json":
             output_config["format"] = {"type": "json_schema", "schema": p["format"]}
         if output_config:
             kwargs["output_config"] = output_config

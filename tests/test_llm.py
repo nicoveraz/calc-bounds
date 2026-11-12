@@ -185,4 +185,29 @@ def test_ollama_plain_json_mode_replaces_the_schema(monkeypatch: pytest.MonkeyPa
     assert "json_format" not in ProviderConfig(kind="ollama", model="m").request_params()
     assert keys[0] != keys[1]  # never served a schema-constrained response from the cache
     with pytest.raises(ValueError):
-        ProviderConfig(kind="anthropic", model="m", json_format="json")
+        ProviderConfig(kind="claude_cli", model="m", json_format="json")
+
+
+def test_anthropic_plain_json_mode_sends_no_schema(monkeypatch: pytest.MonkeyPatch) -> None:
+    from calc_bounds.config import ProviderConfig
+    from calc_bounds.llm.clients import AnthropicClient
+
+    sent: dict[str, object] = {}
+
+    class Messages:
+        def create(self, **kwargs: object) -> object:
+            sent.update(kwargs)
+            raise RuntimeError("stop here")
+
+    client = AnthropicClient.__new__(AnthropicClient)
+    client.cfg = ProviderConfig(kind="anthropic", model="m")
+    client.client = type("C", (), {"messages": Messages()})()  # type: ignore[attr-defined]
+    for mode, has_schema in (("schema", True), ("json", False)):
+        sent.clear()
+        params = ProviderConfig(kind="anthropic", model="m", json_format=mode).request_params()  # type: ignore[arg-type]
+        req = LLMRequest(provider="anthropic", model="m", system="s",
+                         messages=[{"role": "user", "content": "x"}],
+                         params=params | {"format": {"type": "object"}})  # fmt: skip
+        with pytest.raises(RuntimeError):
+            client.complete(req)
+        assert ("format" in sent.get("output_config", {})) is has_schema  # type: ignore[operator]
