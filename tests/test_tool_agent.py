@@ -218,7 +218,8 @@ def test_tool_eval_paired_comparisons_by_hand() -> None:
         for i in range(10):
             rows.append(
                 {
-                    "arm": arm, "provider": "m", "clinician": "ideal", "case_id": f"c{i}",
+                    "arm": arm, "provider": "m", "render": "r", "clinician": "ideal",
+                    "case_id": f"c{i}",
                     "correct": arm == "tool" or i >= 6, "abstained": False,
                     "under_triage": False, "over_triage": arm == "calculator" and i < 6,
                     "premature_commitment": False, "n_questions": 1 if arm == "tool" else 2,

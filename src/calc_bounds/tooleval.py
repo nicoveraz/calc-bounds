@@ -230,7 +230,7 @@ def _paired(x: pd.DataFrame, y: pd.DataFrame) -> list[dict[str, object]]:
 
 def comparisons(table: pd.DataFrame) -> pd.DataFrame:
     """Paired tests on the same cases: the tool arm against the calculator arm for each model
-    and clinician, and one model against the other within each arm and clinician. `p` is not
+    clinician and set of notes, and one model against the other within each arm. `p` is not
     corrected for the number of tests; `p_holm` is, over every row of the table."""
     rows: list[dict[str, object]] = []
 
@@ -245,25 +245,21 @@ def comparisons(table: pd.DataFrame) -> pd.DataFrame:
             )
 
     providers = sorted(table["provider"].unique())
-    for clinician in sorted(table["clinician"].unique()):
-        for provider in providers:
-            add(
-                "tool vs calculator",
-                {"provider": provider, "clinician": clinician},
-                "arm",
-                "tool",
-                "calculator",
-            )
-        for arm in sorted(table["arm"].unique()):
-            for i, first in enumerate(providers):
-                for second in providers[i + 1 :]:
-                    add(
-                        "model vs model",
-                        {"arm": arm, "clinician": clinician},
-                        "provider",
-                        first,
-                        second,
-                    )
+    for render in sorted(table["render"].unique()):
+        for clinician in sorted(table["clinician"].unique()):
+            fixed = {"render": render, "clinician": clinician}
+            for provider in providers:
+                add(
+                    "tool vs calculator",
+                    {**fixed, "provider": provider},
+                    "arm",
+                    "tool",
+                    "calculator",
+                )
+            for arm in sorted(table["arm"].unique()):
+                for i, first in enumerate(providers):
+                    for second in providers[i + 1 :]:
+                        add("model vs model", {**fixed, "arm": arm}, "provider", first, second)
     out = pd.DataFrame(rows)
     if len(out):
         out["p_holm"] = multipletests(out["p"], method="holm")[1]

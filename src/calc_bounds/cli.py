@@ -103,6 +103,9 @@ def tool_eval(
     arm: str = typer.Option("tool", help="tool (S5, bounded-calcs) or calculator (S2)."),
     clinician: str | None = CLINICIAN_OPT,
     per_calc: int | None = typer.Option(None, help="Seeded subset per calculator (pilot)."),
+    notes: str | None = typer.Option(
+        None, help="Render whose notes to use (key in `renders`); default tool_eval.render."
+    ),
 ) -> None:
     """M7: run an LLM agent with the bounded-calcs tool (or the plain calculator)."""
     from calc_bounds import tooleval
@@ -110,6 +113,12 @@ def tool_eval(
     if arm not in ("tool", "calculator"):
         raise typer.BadParameter("arm must be 'tool' or 'calculator'")
     cfg = _load(config, None, None, clinician)
+    if notes:
+        if notes not in cfg.renders or cfg.tool_eval is None:
+            raise typer.BadParameter(f"--notes must be one of {sorted(cfg.renders)}")
+        cfg = cfg.model_copy(
+            update={"tool_eval": cfg.tool_eval.model_copy(update={"render": notes})}
+        )
     typer.echo(f"wrote {tooleval.run(cfg, arm, provider, per_calc)}")  # type: ignore[arg-type]
 
 
