@@ -34,6 +34,12 @@ class ProviderConfig(Strict):
     num_ctx: int | None = Field(default=None, gt=0)
     """ollama only: context window in tokens (Ollama's default can silently truncate long
     notes). Unset = server default; unset values do not enter the request or its cache key."""
+    json_format: Literal["schema", "json"] = "schema"
+    """ollama only: how a request's JSON schema (`format`) is enforced. "schema" constrains
+    decoding to the schema; "json" uses Ollama's plain JSON mode (any valid JSON object) and
+    the schema is not sent. Plain mode is for models whose schema-constrained decoding
+    degenerates (gemma4 in the S2 arm: whitespace until max_tokens). Only the non-default
+    value enters the request, so existing cache keys are unchanged."""
     price_per_mtok_in: float = 0.0
     price_per_mtok_out: float = 0.0
     prompt_cache: bool = False
@@ -49,6 +55,8 @@ class ProviderConfig(Strict):
             raise ValueError(f"{self.kind}: temperature/seed are not supported by current models")
         if self.kind == "openai_compat" and not self.base_url:
             raise ValueError("openai_compat needs base_url")
+        if self.json_format != "schema" and self.kind != "ollama":
+            raise ValueError(f"{self.kind}: json_format is for ollama only")
         return self
 
     def request_params(self) -> dict[str, object]:
@@ -56,6 +64,8 @@ class ProviderConfig(Strict):
         for name in ("effort", "temperature", "seed", "think", "num_ctx"):
             if (v := getattr(self, name)) is not None:
                 params[name] = v
+        if self.json_format != "schema":
+            params["json_format"] = self.json_format
         return params
 
 

@@ -144,3 +144,45 @@ def test_ollama_num_ctx_is_sent_only_when_set(monkeypatch: pytest.MonkeyPatch) -
     assert "num_ctx" not in sent[0]["options"]
     assert sent[1]["options"]["num_ctx"] == 16384
     assert "num_ctx" not in ProviderConfig(kind="ollama", model="m").request_params()
+
+
+def test_ollama_plain_json_mode_replaces_the_schema(monkeypatch: pytest.MonkeyPatch) -> None:
+    import urllib.request
+
+    from calc_bounds.config import ProviderConfig
+    from calc_bounds.llm.clients import OllamaClient
+
+    sent: list[dict] = []
+
+    class Resp:
+        def __enter__(self) -> "Resp":
+            return self
+
+        def __exit__(self, *a: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps({"message": {"content": "{}"}, "done_reason": "stop"}).encode()
+
+    def fake_urlopen(request: urllib.request.Request, timeout: float) -> Resp:
+        sent.append(json.loads(request.data))  # type: ignore[arg-type]
+        return Resp()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    schema = {"type": "object", "properties": {"action": {"type": "string"}}}
+    keys = []
+    for mode in ("schema", "json"):
+        p = ProviderConfig(kind="ollama", model="m", json_format=mode)  # type: ignore[arg-type]
+        r = LLMRequest(
+            provider="ollama",
+            model="m",
+            messages=[],
+            params=p.request_params() | {"format": schema},
+        )
+        OllamaClient(p).complete(r)
+        keys.append(cache_key(r))
+    assert sent[0]["format"] == schema and sent[1]["format"] == "json"
+    assert "json_format" not in ProviderConfig(kind="ollama", model="m").request_params()
+    assert keys[0] != keys[1]  # never served a schema-constrained response from the cache
+    with pytest.raises(ValueError):
+        ProviderConfig(kind="anthropic", model="m", json_format="json")

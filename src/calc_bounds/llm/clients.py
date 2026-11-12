@@ -271,7 +271,7 @@ class OllamaClient:
             "options": options,
         }
         if "format" in p:
-            body["format"] = p["format"]
+            body["format"] = "json" if p.get("json_format") == "json" else p["format"]
         if "think" in p:
             body["think"] = p["think"]
         if p.get("logprobs"):
